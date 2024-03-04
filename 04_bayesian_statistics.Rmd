@@ -1,0 +1,1427 @@
+---
+title: "bayesian_statistics"
+author: "Cintia Anna Nagy"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# import packages
+
+```{r message = FALSE}
+library(tidyverse)
+library(car)
+library(BayesFactor)
+library(bayestestR)
+```
+
+# import data
+
+```{r message = FALSE}
+study1_SL <- read_csv("processed_data/study_1/data_study_1_SL_offline_online.csv")
+study1_GS <- read_csv("processed_data/study_1/data_study_1_GS_offline_online.csv")
+study1_stat_learn <- read_csv("processed_data/study_1/data_study_1_statistical_learning.csv")
+study1_genskill_learn <- read_csv("processed_data/study_1/data_study_1_general_skill_learning.csv")
+study2_SL <- read_csv("processed_data/study_2/data_study_2_SL_offline_online.csv")
+study2_GS <- read_csv("processed_data/study_2/data_study_2_GS_offline_online.csv")
+study2_stat_learn <- read_csv("processed_data/study_2/data_study_2_statistical_learning.csv")
+study2_genskill_learn <- read_csv("processed_data/study_2/data_study_2_general_skill_learning.csv")
+study3_SL <- read_csv("processed_data/study_3/data_study_3_SL_offline_online.csv")
+study3_GS <- read_csv("processed_data/study_3/data_study_3_GS_offline_online.csv")
+study3_stat_learn <- read_csv("processed_data/study_3/data_study_3_statistical_learning.csv")
+study3_genskill_learn <- read_csv("processed_data/study_3/data_study_3_general_skill_learning.csv")
+```
+
+# preprocess data
+## Study 1
+
+```{r}
+# make long dataset
+study1_SL_long <- study1_SL %>% 
+  select(c('Group', 'Subject', 'offline_SL', 'online_SL'))
+
+learning_phase <- c('offline_SL', 'online_SL')
+
+study1_SL_long <- pivot_longer(
+  data = study1_SL_long,
+  cols = learning_phase,
+  names_to = c(".value", "learning_type"),
+  names_pattern = "(\\w+)_(SL)",
+  values_to = "Learning_phase"
+)
+
+phase <- c('offline', 'online')
+
+study1_SL_long <- pivot_longer(
+  data = study1_SL_long,
+  cols = phase,
+  names_to = c("Learning_phase"),
+  values_to = "SL_score"
+)
+
+study1_SL_long <- study1_SL_long %>% 
+ drop_na()
+```
+
+```{r}
+# make long dataset
+study1_GS_long <- study1_GS %>% 
+  select(c('Group', 'Subject', 'offline_GS', 'online_GS'))
+
+learning_phase <- c('offline_GS', 'online_GS')
+
+study1_GS_long <- pivot_longer(
+  data = study1_GS_long,
+  cols = learning_phase,
+  names_to = c(".value", "learning_type"),
+  names_pattern = "(\\w+)_(GS)",
+  values_to = "Learning_phase"
+)
+
+phase <- c('offline', 'online')
+
+study1_GS_long <- pivot_longer(
+  data = study1_GS_long,
+  cols = phase,
+  names_to = c("Learning_phase"),
+  values_to = "GS_score"
+)
+
+study1_GS_long <- study1_GS_long %>% 
+ drop_na()
+```
+
+```{r}
+# make long dataset
+study1_SL_long_block <- study1_SL %>% 
+  select(c('Group', 'Subject', 'block2_offline','block3_offline', 'block4_offline','block5_offline', 'block6_offline','block7_offline', 'block8_offline','block9_offline', 'block10_offline',
+                                       'block11_offline', 'block12_offline','block13_offline', 'block14_offline','block15_offline', 'block16_offline', 'block17_offline','block18_offline', 'block19_offline','block20_offline', 'block2_online','block3_online', 'block4_online','block5_online', 'block6_online','block7_online', 'block8_online','block9_online', 'block10_online',
+                                       'block11_online', 'block12_online','block13_online', 'block14_online','block15_online', 'block16_online', 'block17_online','block18_online', 'block19_online','block20_online'))
+
+blocks <- c('block2','block3', 'block4','block5', 'block6','block7', 'block8','block9', 'block10',
+               'block11', 'block12','block13', 'block14','block15', 'block16', 'block17','block18',
+               'block19','block20')
+
+study1_SL_long_block <- pivot_longer(
+  data = study1_SL_long_block,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Learning_phase"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Learning_phase"
+)
+
+study1_SL_long_block <- pivot_longer(
+  data = study1_SL_long_block,
+  cols = starts_with(blocks),
+  names_to = c("Block"),
+  values_to = "SL_score"
+)
+
+study1_SL_long_block <- study1_SL_long_block %>% 
+  mutate(Block = gsub('block', "", Block))
+
+study1_SL_long_block <- study1_SL_long_block %>% 
+ drop_na()
+```
+
+```{r}
+# make long dataset
+study1_GS_long_block <- study1_GS %>% 
+  select(c('Group','Subject', 'block2_offline','block3_offline', 'block4_offline','block5_offline', 'block6_offline','block7_offline', 'block8_offline','block9_offline', 'block10_offline',
+                                       'block11_offline', 'block12_offline','block13_offline', 'block14_offline','block15_offline', 'block16_offline', 'block17_offline','block18_offline', 'block19_offline','block20_offline','block2_online','block3_online', 'block4_online','block5_online', 'block6_online','block7_online', 'block8_online','block9_online', 'block10_online',
+                                       'block11_online', 'block12_online','block13_online', 'block14_online','block15_online', 'block16_online', 'block17_online','block18_online', 'block19_online','block20_online'))
+
+blocks <- c('block2','block3', 'block4','block5', 'block6','block7', 'block8','block9', 'block10',
+               'block11', 'block12','block13', 'block14','block15', 'block16', 'block17','block18',
+               'block19','block20')
+
+study1_GS_long_block <- pivot_longer(
+  data = study1_GS_long_block,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Learning_phase"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Learning_phase"
+)
+
+study1_GS_long_block <- pivot_longer(
+  data = study1_GS_long_block,
+  cols = starts_with(blocks),
+  names_to = c("Block"),
+  values_to = "GS_score"
+)
+
+study1_GS_long_block <- study1_GS_long_block %>% 
+  mutate(Block = gsub('block', "", Block))
+
+
+study1_GS_long_block <- study1_GS_long_block %>% 
+ drop_na()
+```
+
+```{r}
+study1_stat_learn_long <- study1_stat_learn %>% 
+  select(c('Group', 'Subject', 'e1_H','e2_H','e3_H','e4_H', 'e1_L','e2_L','e3_L','e4_L'))
+
+blocks <- c('e1','e2','e3','e4')
+
+study1_stat_learn_long <- pivot_longer(
+  data = study1_stat_learn_long,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Triplet"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Triplet"
+)
+
+study1_stat_learn_long <- pivot_longer(
+  data = study1_stat_learn_long,
+  cols = starts_with(blocks),
+  names_to = c("Blocks"),
+  values_to = "stat_learn"
+)
+
+study1_stat_learn_long <- study1_stat_learn_long %>% 
+  mutate(Block = gsub('e', "", Blocks))
+```
+
+```{r}
+study1_genskill_learn_long <- study1_genskill_learn %>% 
+  select(c('Group', 'Subject', 'e1','e2','e3','e4'))
+
+blocks <- c('e1','e2','e3','e4')
+
+study1_genskill_learn_long <- pivot_longer(
+  data = study1_genskill_learn_long,
+  cols = starts_with(blocks),
+  names_to = c("Blocks"),
+  values_to = "genskill_learn"
+)
+
+study1_genskill_learn_long <- study1_genskill_learn_long %>% 
+  mutate(Block = gsub('e', "", Blocks))
+```
+
+## Study 2
+
+```{r}
+# make long dataset
+study2_SL_long <- study2_SL %>% 
+  select(c('Group', 'Subject', 'offline_SL', 'online_SL'))
+
+learning_phase <- c('offline_SL', 'online_SL')
+
+study2_SL_long <- pivot_longer(
+  data = study2_SL_long,
+  cols = learning_phase,
+  names_to = c(".value", "learning_type"),
+  names_pattern = "(\\w+)_(SL)",
+  values_to = "Learning_phase"
+)
+
+phase <- c('offline', 'online')
+
+study2_SL_long <- pivot_longer(
+  data = study2_SL_long,
+  cols = phase,
+  names_to = c("Learning_phase"),
+  values_to = "SL_score"
+)
+
+study2_SL_long <- study2_SL_long %>% 
+ drop_na()
+```
+
+```{r}
+# make long dataset
+study2_GS_long <- study2_GS %>% 
+  select(c('Group', 'Subject', 'offline_GS', 'online_GS'))
+
+learning_phase <- c('offline_GS', 'online_GS')
+
+study2_GS_long <- pivot_longer(
+  data = study2_GS_long,
+  cols = learning_phase,
+  names_to = c(".value", "learning_type"),
+  names_pattern = "(\\w+)_(GS)",
+  values_to = "Learning_phase"
+)
+
+phase <- c('offline', 'online')
+
+study2_GS_long <- pivot_longer(
+  data = study2_GS_long,
+  cols = phase,
+  names_to = c("Learning_phase"),
+  values_to = "GS_score"
+)
+
+study2_GS_long <- study2_GS_long %>% 
+ drop_na()
+```
+
+```{r}
+# make long dataset
+study2_SL_long_block <- study2_SL %>% 
+  select(c('Group', 'Subject', 'block2_offline','block3_offline', 'block4_offline','block5_offline', 'block6_offline','block7_offline', 'block8_offline','block9_offline', 'block10_offline',
+                                       'block11_offline', 'block12_offline','block13_offline', 'block14_offline','block15_offline', 'block16_offline', 'block17_offline','block18_offline', 'block19_offline','block20_offline','block2_online','block3_online', 'block4_online','block5_online', 'block6_online','block7_online', 'block8_online','block9_online', 'block10_online',
+                                       'block11_online', 'block12_online','block13_online', 'block14_online','block15_online', 'block16_online', 'block17_online','block18_online', 'block19_online','block20_online'))
+
+blocks <- c('block2','block3', 'block4','block5', 'block6','block7', 'block8','block9', 'block10',
+               'block11', 'block12','block13', 'block14','block15', 'block16', 'block17','block18',
+               'block19','block20')
+
+study2_SL_long_block <- pivot_longer(
+  data = study2_SL_long_block,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Learning_phase"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Learning_phase"
+)
+
+study2_SL_long_block <- pivot_longer(
+  data = study2_SL_long_block,
+  cols = starts_with(blocks),
+  names_to = c("Block"),
+  values_to = "SL_score"
+)
+
+study2_SL_long_block <- study2_SL_long_block %>% 
+  mutate(Block = gsub('block', "", Block))
+
+study2_SL_long_block <- study2_SL_long_block %>% 
+ drop_na()
+```
+
+```{r}
+# make long dataset
+study2_GS_long_block <- study2_GS %>% 
+  select(c('Group','Subject', 'block2_offline','block3_offline', 'block4_offline','block5_offline', 'block6_offline','block7_offline', 'block8_offline','block9_offline', 'block10_offline',
+                                       'block11_offline', 'block12_offline','block13_offline', 'block14_offline','block15_offline', 'block16_offline', 'block17_offline','block18_offline', 'block19_offline','block20_offline','block2_online','block3_online', 'block4_online','block5_online', 'block6_online','block7_online', 'block8_online','block9_online', 'block10_online',
+                                       'block11_online', 'block12_online','block13_online', 'block14_online','block15_online', 'block16_online', 'block17_online','block18_online', 'block19_online','block20_online'))
+
+blocks <- c('block2','block3', 'block4','block5', 'block6','block7', 'block8','block9', 'block10',
+               'block11', 'block12','block13', 'block14','block15', 'block16', 'block17','block18',
+               'block19','block20')
+
+study2_GS_long_block <- pivot_longer(
+  data = study2_GS_long_block,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Learning_phase"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Learning_phase"
+)
+
+study2_GS_long_block <- pivot_longer(
+  data = study2_GS_long_block,
+  cols = starts_with(blocks),
+  names_to = c("Block"),
+  values_to = "GS_score"
+)
+
+study2_GS_long_block <- study2_GS_long_block %>% 
+  mutate(Block = gsub('block', "", Block))
+
+
+study2_GS_long_block <- study2_GS_long_block %>% 
+ drop_na()
+```
+
+```{r}
+study2_stat_learn_long <- study2_stat_learn %>% 
+  select(c('Group', 'Subject', 'e1_H','e2_H','e3_H','e4_H', 'e1_L','e2_L','e3_L','e4_L'))
+
+blocks <- c('e1','e2','e3','e4')
+
+study2_stat_learn_long <- pivot_longer(
+  data = study2_stat_learn_long,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Triplet"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Triplet"
+)
+
+study2_stat_learn_long <- pivot_longer(
+  data = study2_stat_learn_long,
+  cols = starts_with(blocks),
+  names_to = c("Blocks"),
+  values_to = "stat_learn"
+)
+
+study2_stat_learn_long <- study2_stat_learn_long %>% 
+  mutate(Block = gsub('e', "", Blocks))
+```
+
+```{r}
+study2_genskill_learn_long <- study2_genskill_learn %>% 
+  select(c('Group', 'Subject', 'e1','e2','e3','e4'))
+
+blocks <- c('e1','e2','e3','e4')
+
+study2_genskill_learn_long <- pivot_longer(
+  data = study2_genskill_learn_long,
+  cols = starts_with(blocks),
+  names_to = c("Blocks"),
+  values_to = "genskill_learn"
+)
+
+study2_genskill_learn_long <- study2_genskill_learn_long %>% 
+  mutate(Block = gsub('e', "", Blocks))
+```
+
+## Study 3
+
+```{r}
+# make long dataset
+study3_SL_long <- study3_SL %>% 
+  select(c('Group', 'AQ_total', 'Subject', 'offline_SL', 'online_SL'))
+
+learning_phase <- c('offline_SL', 'online_SL')
+
+study3_SL_long <- pivot_longer(
+  data = study3_SL_long,
+  cols = learning_phase,
+  names_to = c(".value", "learning_type"),
+  names_pattern = "(\\w+)_(SL)",
+  values_to = "Learning_phase"
+)
+
+phase <- c('offline', 'online')
+
+study3_SL_long <- pivot_longer(
+  data = study3_SL_long,
+  cols = phase,
+  names_to = c("Learning_phase"),
+  values_to = "SL_score"
+)
+
+study3_SL_long <- study3_SL_long %>% 
+ drop_na()
+```
+
+```{r}
+# make long dataset
+study3_GS_long <- study3_GS %>% 
+  select(c('Group', 'AQ_total', 'Subject', 'offline_GS', 'online_GS'))
+
+learning_phase <- c('offline_GS', 'online_GS')
+
+study3_GS_long <- pivot_longer(
+  data = study3_GS_long,
+  cols = learning_phase,
+  names_to = c(".value", "learning_type"),
+  names_pattern = "(\\w+)_(GS)",
+  values_to = "Learning_phase"
+)
+
+phase <- c('offline', 'online')
+
+study3_GS_long <- pivot_longer(
+  data = study3_GS_long,
+  cols = phase,
+  names_to = c("Learning_phase"),
+  values_to = "GS_score"
+)
+
+study3_GS_long <- study3_GS_long %>% 
+ drop_na()
+```
+
+```{r}
+# make long dataset
+study3_SL_long_block <- study3_SL %>% 
+  select(c('Group', 'AQ_total', 'Subject', 'block2_offline','block3_offline', 'block4_offline','block5_offline', 'block6_offline','block7_offline', 'block8_offline','block9_offline', 'block10_offline',
+                                       'block11_offline', 'block12_offline','block13_offline', 'block14_offline','block15_offline', 'block16_offline', 'block17_offline','block18_offline', 'block19_offline','block20_offline', 'block21_offline', 'block22_offline','block23_offline', 'block24_offline','block25_offline','block2_online','block3_online', 'block4_online','block5_online', 'block6_online','block7_online', 'block8_online','block9_online', 'block10_online',
+                                       'block11_online', 'block12_online','block13_online', 'block14_online','block15_online', 'block16_online', 'block17_online','block18_online', 'block19_online','block20_online',
+                                       'block21_online', 'block22_online','block23_online', 'block24_online','block25_online'))
+
+blocks <- c('block2','block3', 'block4','block5', 'block6','block7', 'block8','block9', 'block10',
+               'block11', 'block12','block13', 'block14','block15', 'block16', 'block17','block18',
+               'block19','block20', 'block21', 'block22','block23', 'block24','block25')
+
+study3_SL_long_block <- pivot_longer(
+  data = study3_SL_long_block,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Learning_phase"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Learning_phase"
+)
+
+study3_SL_long_block <- pivot_longer(
+  data = study3_SL_long_block,
+  cols = starts_with(blocks),
+  names_to = c("Block"),
+  values_to = "SL_score"
+)
+
+study3_SL_long_block <- study3_SL_long_block %>% 
+  mutate(Block = gsub('block', "", Block))
+
+study3_SL_long_block <- study3_SL_long_block %>% 
+ drop_na()
+```
+
+```{r}
+# make long dataset
+study3_GS_long_block <- study3_GS %>% 
+  select(c('Group', 'AQ_total', 'Subject', 'block2_offline','block3_offline', 'block4_offline','block5_offline', 'block6_offline','block7_offline', 'block8_offline','block9_offline', 'block10_offline',
+                                       'block11_offline', 'block12_offline','block13_offline', 'block14_offline','block15_offline', 'block16_offline', 'block17_offline','block18_offline', 'block19_offline','block20_offline', 'block21_offline', 'block22_offline','block23_offline', 'block24_offline','block25_offline','block2_online','block3_online', 'block4_online','block5_online', 'block6_online','block7_online', 'block8_online','block9_online', 'block10_online',
+                                       'block11_online', 'block12_online','block13_online', 'block14_online','block15_online', 'block16_online', 'block17_online','block18_online', 'block19_online','block20_online',
+                                       'block21_online', 'block22_online','block23_online', 'block24_online','block25_online'))
+
+blocks <- c('block2','block3', 'block4','block5', 'block6','block7', 'block8','block9', 'block10',
+               'block11', 'block12','block13', 'block14','block15', 'block16', 'block17','block18',
+               'block19','block20', 'block21', 'block22','block23', 'block24','block25')
+
+study3_GS_long_block <- pivot_longer(
+  data = study3_GS_long_block,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Learning_phase"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Learning_phase"
+)
+
+study3_GS_long_block <- pivot_longer(
+  data = study3_GS_long_block,
+  cols = starts_with(blocks),
+  names_to = c("Block"),
+  values_to = "GS_score"
+)
+
+study3_GS_long_block <- study3_GS_long_block %>% 
+  mutate(Block = gsub('block', "", Block))
+
+
+study3_GS_long_block <- study3_GS_long_block %>% 
+ drop_na()
+```
+
+```{r}
+study3_stat_learn_long <- study3_stat_learn %>% 
+  select(c('Group', 'Subject', 'e1_H','e2_H','e3_H','e4_H','e5_H', 'e1_L','e2_L','e3_L','e4_L','e5_L'))
+
+blocks <- c('e1','e2','e3','e4','e5')
+
+study3_stat_learn_long <- pivot_longer(
+  data = study3_stat_learn_long,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Triplet"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Triplet"
+)
+
+study3_stat_learn_long <- pivot_longer(
+  data = study3_stat_learn_long,
+  cols = starts_with(blocks),
+  names_to = c("Blocks"),
+  values_to = "stat_learn"
+)
+
+study3_stat_learn_long <- study3_stat_learn_long %>% 
+  mutate(Block = gsub('e', "", Blocks))
+```
+
+```{r}
+study3_genskill_learn_long <- study3_genskill_learn %>% 
+  select(c('Group', 'Subject', 'e1','e2','e3','e4','e5'))
+
+blocks <- c('e1','e2','e3','e4','e5')
+
+study3_genskill_learn_long <- pivot_longer(
+  data = study3_genskill_learn_long,
+  cols = starts_with(blocks),
+  names_to = c("Blocks"),
+  values_to = "genskill_learn"
+)
+
+study3_genskill_learn_long <- study3_genskill_learn_long %>% 
+  mutate(Block = gsub('e', "", Blocks))
+```
+
+# Study 1
+## statistical learning
+### learning phase x group
+
+```{r}
+study1_bayes_SL <- generalTestBF(SL_score ~ Learning_phase*Group,
+data = study1_SL_long)
+```
+
+```{r}
+extractBF(study1_bayes_SL)
+```
+
+```{r}
+study1_BF_incl_SL <- bayesfactor_inclusion(study1_bayes_SL, match_models = TRUE)
+study1_BF_incl_SL
+```
+
+```{r}
+# BF_exclusion
+1/as.numeric(study1_BF_incl_SL)
+```
+
+```{r}
+plot(study1_bayes_SL)
+```
+
+### learning phase
+
+```{r}
+# whole sample offline
+whole_offline <- study1_SL_long %>% 
+  filter(Learning_phase == "offline")
+
+study1_BF_whole_off_SL <- extractBF(ttestBF(whole_offline$SL_score))$bf
+
+# BF01
+1/as.numeric(study1_BF_whole_off_SL)
+```
+
+```{r}
+# whole sample online
+whole_online <- study1_SL_long %>% 
+  filter(Learning_phase == "online")
+
+study1_BF_whole_on_SL <- extractBF(ttestBF(whole_online$SL_score))$bf
+
+# BF01
+1/as.numeric(study1_BF_whole_on_SL)
+```
+
+```{r}
+# NTP group offline
+NTP_offline <- study1_SL_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 0)
+
+study1_BF_NTP_off_SL <- extractBF(ttestBF(NTP_offline$SL_score))$bf
+
+# BF01
+1/as.numeric(study1_BF_NTP_off_SL)
+```
+
+```{r}
+# NTP group online
+NTP_online <- study1_SL_long %>% 
+  filter(Learning_phase == "online",
+         Group == 0)
+
+study1_BF_NTP_on_SL <- extractBF(ttestBF(NTP_online$SL_score))$bf
+
+# BF01
+1/as.numeric(study1_BF_NTP_on_SL)
+```
+
+```{r}
+# ASD group offline
+ASD_offline <- study1_SL_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 1)
+
+study1_BF_ASD_off_SL <- extractBF(ttestBF(ASD_offline$SL_score))$bf
+
+# BF01
+1/as.numeric(study1_BF_ASD_off_SL)
+```
+
+```{r}
+# ASD group online
+ASD_online <- study1_SL_long %>% 
+  filter(Learning_phase == "online",
+         Group == 1)
+
+study1_BF_ASD_on_SL <- extractBF(ttestBF(ASD_online$SL_score))$bf
+
+# BF01
+1/as.numeric(study1_BF_ASD_on_SL)
+```
+
+### learning phase x block x group
+
+```{r}
+study1_bayes_block_SL <- generalTestBF(SL_score ~ Learning_phase*Block*Group,
+data = study1_SL_long_block)
+```
+
+```{r}
+extractBF(study1_bayes_block_SL)
+```
+
+```{r}
+study1_BF_incl_block_SL <- bayesfactor_inclusion(study1_bayes_block_SL, match_models = TRUE)
+study1_BF_incl_block_SL
+```
+
+```{r}
+# BF_exclusion
+1/as.numeric(study1_BF_incl_block_SL)
+```
+
+```{r}
+plot(study1_bayes_block_SL)
+```
+
+## general skill learning
+### learning phase x group
+
+```{r}
+study1_bayes_GS <- generalTestBF(GS_score ~ Learning_phase*Group,
+data = study1_GS_long)
+```
+
+```{r}
+extractBF(study1_bayes_GS)
+```
+
+```{r}
+study1_BF_incl_GS <- bayesfactor_inclusion(study1_bayes_GS, match_models = TRUE)
+study1_BF_incl_GS
+```
+
+```{r}
+# BF_exclusion
+1/as.numeric(study1_BF_incl_GS)
+```
+
+```{r}
+plot(study1_bayes_GS)
+```
+
+### learning phase
+
+```{r}
+# whole sample offline
+whole_offline <- study1_GS_long %>% 
+  filter(Learning_phase == "offline")
+
+study1_BF_whole_off_GS <- extractBF(ttestBF(whole_offline$GS_score))$bf
+
+# BF01
+1/as.numeric(study1_BF_whole_off_GS)
+```
+
+```{r}
+# whole sample online
+whole_online <- study1_GS_long %>% 
+  filter(Learning_phase == "online")
+
+study1_BF_whole_on_GS <- extractBF(ttestBF(whole_online$GS_score))$bf
+
+# BF01
+1/as.numeric(study1_BF_whole_on_GS)
+```
+
+```{r}
+# NTP group offline
+NTP_offline <- study1_GS_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 0)
+
+study1_BF_NTP_off_GS <- extractBF(ttestBF(NTP_offline$GS_score))$bf
+
+# BF01
+1/as.numeric(study1_BF_NTP_off_GS)
+```
+
+```{r}
+# NTP group online
+NTP_online <- study1_GS_long %>% 
+  filter(Learning_phase == "online",
+         Group == 0)
+
+study1_BF_NTP_on_GS <- extractBF(ttestBF(NTP_online$GS_score))$bf
+
+# BF01
+1/as.numeric(study1_BF_NTP_on_GS)
+```
+
+```{r}
+# ASD group offline
+ASD_offline <- study1_GS_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 1)
+
+study1_BF_ASD_off_GS <- extractBF(ttestBF(ASD_offline$GS_score))$bf
+
+# BF01
+1/as.numeric(study1_BF_ASD_off_GS)
+```
+
+```{r}
+# ASD group online
+ASD_online <- study1_GS_long %>% 
+  filter(Learning_phase == "online",
+         Group == 1)
+
+study1_BF_ASD_on_GS <- extractBF(ttestBF(ASD_online$GS_score))$bf
+
+# BF01
+1/as.numeric(study1_BF_ASD_on_GS)
+```
+
+### learning phase x block x group
+
+```{r}
+study1_bayes_block_GS <- generalTestBF(GS_score ~ Learning_phase*Block*Group,
+data = study1_GS_long_block)
+```
+
+```{r}
+extractBF(study1_bayes_block_GS)
+```
+
+```{r}
+study1_BF_incl_block_GS <- bayesfactor_inclusion(study1_bayes_block_GS, match_models = TRUE)
+study1_BF_incl_block_GS
+```
+
+```{r}
+# BF_exclusion
+1/as.numeric(study1_BF_incl_block_GS)
+```
+
+```{r}
+plot(study1_bayes_block_GS)
+```
+
+## stat learning
+
+```{r}
+bayes_statlearn <- generalTestBF(stat_learn ~ Triplet*Block*Group,
+data = study1_stat_learn_long)
+```
+
+```{r}
+extractBF(bayes_statlearn)
+```
+
+```{r}
+BF_incl_statlearn <- bayesfactor_inclusion(bayes_statlearn, match_models = TRUE)
+BF_incl_statlearn
+```
+
+```{r}
+# BF_exclusion
+1/as.numeric(BF_incl_statlearn)
+```
+
+```{r}
+plot(bayes_statlearn)
+```
+
+## general skill learning
+
+```{r}
+bayes_genskill_learn <- generalTestBF(genskill_learn ~ Block*Group,
+data = study1_genskill_learn_long)
+```
+
+```{r}
+extractBF(bayes_genskill_learn)
+```
+
+```{r}
+BF_incl_genskill_learn <- bayesfactor_inclusion(bayes_genskill_learn, match_models = TRUE)
+BF_incl_genskill_learn
+```
+
+```{r}
+# BF_exclusion
+1/as.numeric(BF_incl_genskill_learn)
+```
+
+```{r}
+plot(bayes_genskill_learn)
+```
+
+# Study 2
+## statistical learning
+### learning phase x group
+
+```{r}
+study2_bayes_SL <- generalTestBF(SL_score ~ Learning_phase*Group,
+data = study2_SL_long)
+```
+
+```{r}
+extractBF(study2_bayes_SL)
+```
+
+```{r}
+study2_BF_incl_SL <- bayesfactor_inclusion(study2_bayes_SL, match_models = TRUE)
+study2_BF_incl_SL
+```
+
+```{r}
+# BF_exclusion
+1/as.numeric(study2_BF_incl_SL)
+```
+
+```{r}
+plot(study2_bayes_SL)
+```
+
+### learning phase
+
+```{r}
+# whole sample offline
+whole_offline <- study2_SL_long %>% 
+  filter(Learning_phase == "offline")
+
+study2_BF_whole_off_SL <- extractBF(ttestBF(whole_offline$SL_score))$bf
+
+# BF01
+1/as.numeric(study2_BF_whole_off_SL)
+```
+
+```{r}
+# whole sample online
+whole_online <- study2_SL_long %>% 
+  filter(Learning_phase == "online")
+
+study2_BF_whole_on_SL <- extractBF(ttestBF(whole_online$SL_score))$bf
+
+# BF01
+1/as.numeric(study2_BF_whole_on_SL)
+```
+
+```{r}
+# NTP group offline
+NTP_offline <- study2_SL_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 0)
+
+study2_BF_NTP_off_SL <- extractBF(ttestBF(NTP_offline$SL_score))$bf
+
+# BF01
+1/as.numeric(study2_BF_NTP_off_SL)
+```
+
+```{r}
+# NTP group online
+NTP_online <- study2_SL_long %>% 
+  filter(Learning_phase == "online",
+         Group == 0)
+
+study2_BF_NTP_on_SL <- extractBF(ttestBF(NTP_online$SL_score))$bf
+
+# BF01
+1/as.numeric(study2_BF_NTP_on_SL)
+```
+
+```{r}
+# ASD group offline
+ASD_offline <- study2_SL_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 1)
+
+study2_BF_ASD_off_SL <- extractBF(ttestBF(ASD_offline$SL_score))$bf
+
+# BF01
+1/as.numeric(study2_BF_ASD_off_SL)
+```
+
+```{r}
+# ASD group online
+ASD_online <- study2_SL_long %>% 
+  filter(Learning_phase == "online",
+         Group == 1)
+
+study2_BF_ASD_on_SL <- extractBF(ttestBF(ASD_online$SL_score))$bf
+
+# BF01
+1/as.numeric(study2_BF_ASD_on_SL)
+```
+
+### learning phase x block x group
+
+```{r}
+study2_bayes_block_SL <- generalTestBF(SL_score ~ Learning_phase*Block*Group,
+data = study2_SL_long_block)
+```
+
+```{r}
+extractBF(study2_bayes_block_SL)
+```
+
+```{r}
+study2_BF_incl_block_SL <- bayesfactor_inclusion(study2_bayes_block_SL, match_models = TRUE)
+study2_BF_incl_block_SL
+```
+
+```{r}
+# BF_exclusion
+1/as.numeric(study2_BF_incl_block_SL)
+```
+
+```{r}
+plot(study2_bayes_block_SL)
+```
+
+## general skill learning
+### learning phase x group
+
+```{r}
+study2_bayes_GS <- generalTestBF(GS_score ~ Learning_phase*Group,
+data = study2_GS_long)
+```
+
+```{r}
+extractBF(study2_bayes_GS)
+```
+
+```{r}
+study2_BF_incl_GS <- bayesfactor_inclusion(study2_bayes_GS, match_models = TRUE)
+study2_BF_incl_GS
+```
+
+```{r}
+# BF_exclusion
+1/as.numeric(study2_BF_incl_GS)
+```
+
+```{r}
+plot(study2_bayes_GS)
+```
+
+### learning phase
+
+```{r}
+# whole sample offline
+whole_offline <- study2_GS_long %>% 
+  filter(Learning_phase == "offline")
+
+study2_BF_whole_off_GS <- extractBF(ttestBF(whole_offline$GS_score))$bf
+
+# BF01
+1/as.numeric(study2_BF_whole_off_GS)
+```
+
+```{r}
+# whole sample online
+whole_online <- study2_GS_long %>% 
+  filter(Learning_phase == "online")
+
+study2_BF_whole_on_GS <- extractBF(ttestBF(whole_online$GS_score))$bf
+
+# BF01
+1/as.numeric(study2_BF_whole_on_GS)
+```
+
+```{r}
+# NTP group offline
+NTP_offline <- study2_GS_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 0)
+
+study2_BF_NTP_off_GS <- extractBF(ttestBF(NTP_offline$GS_score))$bf
+
+# BF01
+1/as.numeric(study2_BF_NTP_off_GS)
+```
+
+```{r}
+# NTP group online
+NTP_online <- study2_GS_long %>% 
+  filter(Learning_phase == "online",
+         Group == 0)
+
+study2_BF_NTP_on_GS <- extractBF(ttestBF(NTP_online$GS_score))$bf
+
+# BF01
+1/as.numeric(study2_BF_NTP_on_GS)
+```
+
+```{r}
+# ASD group offline
+ASD_offline <- study2_GS_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 1)
+
+study2_BF_ASD_off_GS <- extractBF(ttestBF(ASD_offline$GS_score))$bf
+
+# BF01
+1/as.numeric(study2_BF_ASD_off_GS)
+```
+
+```{r}
+# ASD group online
+ASD_online <- study2_GS_long %>% 
+  filter(Learning_phase == "online",
+         Group == 1)
+
+study2_BF_ASD_on_GS <- extractBF(ttestBF(ASD_online$GS_score))$bf
+
+# BF01
+1/as.numeric(study2_BF_ASD_on_GS)
+```
+
+### learning phase x block x group
+
+```{r}
+study2_bayes_block_GS <- generalTestBF(GS_score ~ Learning_phase*Block*Group,
+data = study2_GS_long_block)
+```
+
+```{r}
+extractBF(study2_bayes_block_GS)
+```
+
+```{r}
+study2_BF_incl_block_GS <- bayesfactor_inclusion(study2_bayes_block_GS, match_models = TRUE)
+study2_BF_incl_block_GS
+```
+
+```{r}
+# BF_exclusion
+1/as.numeric(study2_BF_incl_block_GS)
+```
+
+```{r}
+plot(study2_bayes_block_GS)
+```
+
+## stat learning
+
+```{r}
+bayes_statlearn <- generalTestBF(stat_learn ~ Triplet*Block*Group,
+data = study2_stat_learn_long)
+```
+
+```{r}
+extractBF(bayes_statlearn)
+```
+
+```{r}
+BF_incl_statlearn <- bayesfactor_inclusion(bayes_statlearn, match_models = TRUE)
+BF_incl_statlearn
+```
+
+```{r}
+# BF_exclusion
+1/as.numeric(BF_incl_statlearn)
+```
+
+```{r}
+plot(bayes_statlearn)
+```
+
+## general skill learning
+
+```{r}
+bayes_genskill_learn <- generalTestBF(genskill_learn ~ Block*Group,
+data = study2_genskill_learn_long)
+```
+
+```{r}
+extractBF(bayes_genskill_learn)
+```
+
+```{r}
+BF_incl_genskill_learn <- bayesfactor_inclusion(bayes_genskill_learn, match_models = TRUE)
+BF_incl_genskill_learn
+```
+
+```{r}
+# BF_exclusion
+1/as.numeric(BF_incl_genskill_learn)
+```
+
+```{r}
+plot(bayes_genskill_learn)
+```
+
+# Study 3
+## statistical learning
+### learning phase x group
+
+```{r}
+study3_bayes_SL <- generalTestBF(SL_score ~ Learning_phase*Group,
+data = study3_SL_long)
+```
+
+```{r}
+extractBF(study3_bayes_SL)
+```
+
+```{r}
+study3_BF_incl_SL <- bayesfactor_inclusion(study3_bayes_SL, match_models = TRUE)
+study3_BF_incl_SL
+```
+
+```{r}
+# BF_exclusion
+1/as.numeric(study3_BF_incl_SL)
+```
+
+```{r}
+plot(study3_bayes_SL)
+```
+
+### learning phase
+
+```{r}
+# whole sample offline
+whole_offline <- study3_SL_long %>% 
+  filter(Learning_phase == "offline")
+
+study3_BF_whole_off_SL <- extractBF(ttestBF(whole_offline$SL_score))$bf
+
+# BF01
+1/as.numeric(study3_BF_whole_off_SL)
+```
+
+```{r}
+# whole sample online
+whole_online <- study3_SL_long %>% 
+  filter(Learning_phase == "online")
+
+study3_BF_whole_on_SL <- extractBF(ttestBF(whole_online$SL_score))$bf
+
+# BF01
+1/as.numeric(study3_BF_whole_on_SL)
+```
+
+```{r}
+# low AQ group offline
+lowAQ_offline <- study3_SL_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 0)
+
+study3_BF_lowAQ_off_SL <- extractBF(ttestBF(lowAQ_offline$SL_score))$bf
+
+# BF01
+1/as.numeric(study3_BF_lowAQ_off_SL)
+```
+
+```{r}
+# low AQ group online
+lowAQ_online <- study3_SL_long %>% 
+  filter(Learning_phase == "online",
+         Group == 0)
+
+study3_BF_lowAQ_on_SL <- extractBF(ttestBF(lowAQ_online$SL_score))$bf
+
+# BF01
+1/as.numeric(study3_BF_lowAQ_on_SL)
+```
+
+```{r}
+# high AQ group offline
+highAQ_offline <- study3_SL_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 1)
+
+study3_BF_highAQ_off_SL <- extractBF(ttestBF(highAQ_offline$SL_score))$bf
+
+# BF01
+1/as.numeric(study3_BF_highAQ_off_SL)
+```
+
+```{r}
+# high AQ group online
+highAQ_online <- study3_SL_long %>% 
+  filter(Learning_phase == "online",
+         Group == 1)
+
+study3_BF_highAQ_on_SL <- extractBF(ttestBF(highAQ_online$SL_score))$bf
+
+# BF01
+1/as.numeric(study3_BF_highAQ_on_SL)
+```
+
+### learning phase x block x group
+
+```{r}
+study3_bayes_block_SL <- generalTestBF(SL_score ~ Learning_phase*Block*Group,
+data = study3_SL_long_block)
+```
+
+```{r}
+extractBF(study3_bayes_block_SL)
+```
+
+```{r}
+study3_BF_incl_block_SL <- bayesfactor_inclusion(study3_bayes_block_SL, match_models = TRUE)
+study3_BF_incl_block_SL
+```
+
+```{r}
+# BF_exclusion
+1/as.numeric(study3_BF_incl_block_SL)
+```
+
+```{r}
+plot(study3_bayes_block_SL)
+```
+
+## general skill learning
+### learning phase x group
+
+```{r}
+study3_bayes_GS <- generalTestBF(GS_score ~ Learning_phase*Group,
+data = study3_GS_long)
+```
+
+```{r}
+extractBF(study3_bayes_GS)
+```
+
+```{r}
+study3_BF_incl_GS <- bayesfactor_inclusion(study3_bayes_GS, match_models = TRUE)
+study3_BF_incl_GS
+```
+
+```{r}
+# BF_exclusion
+1/as.numeric(study3_BF_incl_GS)
+```
+
+```{r}
+plot(study3_bayes_GS)
+```
+
+### learning phase
+
+```{r}
+# whole sample offline
+whole_offline <- study3_GS_long %>% 
+  filter(Learning_phase == "offline")
+
+study3_BF_whole_off_GS <- extractBF(ttestBF(whole_offline$GS_score))$bf
+
+# BF01
+1/as.numeric(study3_BF_whole_off_GS)
+```
+
+```{r}
+# whole sample online
+whole_online <- study3_GS_long %>% 
+  filter(Learning_phase == "online")
+
+study3_BF_whole_on_GS <- extractBF(ttestBF(whole_online$GS_score))$bf
+
+# BF01
+1/as.numeric(study3_BF_whole_on_GS)
+```
+
+```{r}
+# low AQ group offline
+lowAQ_offline <- study3_GS_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 0)
+
+study3_BF_lowAQ_off_GS <- extractBF(ttestBF(lowAQ_offline$GS_score))$bf
+
+# BF01
+1/as.numeric(study3_BF_lowAQ_off_GS)
+```
+
+```{r}
+# low AQ group online
+lowAQ_online <- study3_GS_long %>% 
+  filter(Learning_phase == "online",
+         Group == 0)
+
+study3_BF_lowAQ_on_GS <- extractBF(ttestBF(lowAQ_online$GS_score))$bf
+
+# BF01
+1/as.numeric(study3_BF_lowAQ_on_GS)
+```
+
+```{r}
+# high AQ group offline
+highAQ_offline <- study3_GS_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 1)
+
+study3_BF_highAQ_off_GS <- extractBF(ttestBF(highAQ_offline$GS_score))$bf
+
+# BF01
+1/as.numeric(study3_BF_highAQ_off_GS)
+```
+
+```{r}
+# high AQ group online
+highAQ_online <- study3_GS_long %>% 
+  filter(Learning_phase == "online",
+         Group == 1)
+
+study3_BF_highAQ_on_GS <- extractBF(ttestBF(highAQ_online$GS_score))$bf
+
+# BF01
+1/as.numeric(study3_BF_highAQ_on_GS)
+```
+
+### learning phase x block x group
+
+```{r}
+study3_bayes_block_GS <- generalTestBF(GS_score ~ Learning_phase*Block*Group,
+data = study3_GS_long_block)
+```
+
+```{r}
+extractBF(study3_bayes_block_GS)
+```
+
+```{r}
+study3_BF_incl_block_GS <- bayesfactor_inclusion(study3_bayes_block_GS, match_models = TRUE)
+study3_BF_incl_block_GS
+```
+
+```{r}
+# BF_exclusion
+1/as.numeric(study3_BF_incl_block_GS)
+```
+
+```{r}
+plot(study3_bayes_block_GS)
+```
+
+## stat learning
+
+```{r}
+bayes_statlearn <- generalTestBF(stat_learn ~ Triplet*Block*Group,
+data = study3_stat_learn_long)
+```
+
+```{r}
+extractBF(bayes_statlearn)
+```
+
+```{r}
+BF_incl_statlearn <- bayesfactor_inclusion(bayes_statlearn, match_models = TRUE)
+BF_incl_statlearn
+```
+
+```{r}
+# BF_exclusion
+1/as.numeric(BF_incl_statlearn)
+```
+
+```{r}
+plot(bayes_statlearn)
+```
+
+## general skill learning
+
+```{r}
+bayes_genskill_learn <- generalTestBF(genskill_learn ~ Block*Group,
+data = study3_genskill_learn_long)
+```
+
+```{r}
+extractBF(bayes_genskill_learn)
+```
+
+```{r}
+BF_incl_genskill_learn <- bayesfactor_inclusion(bayes_genskill_learn, match_models = TRUE)
+BF_incl_genskill_learn
+```
+
+```{r}
+# BF_exclusion
+1/as.numeric(BF_incl_genskill_learn)
+```
+
+```{r}
+plot(bayes_genskill_learn)
+```

@@ -1,0 +1,675 @@
+---
+title: "analysis_spectrum_offline_online_linreg"
+author: "Cintia Anna Nagy"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+---
+
+# import packages
+
+```{r message = FALSE}
+library(tidyverse)
+library(sjPlot)
+library(performance)
+library(nortest)
+library(stats)
+library(car)
+```
+
+# set random seed
+
+```{r}
+set.seed(713)
+```
+
+# import data
+
+```{r message = FALSE}
+study3_SL <- read_csv("processed_data/study_3/data_study_3_SL_offline_online.csv")
+study3_GS <- read_csv("processed_data/study_3/data_study_3_GS_offline_online.csv")
+```
+
+# preprocess data
+
+```{r}
+# make long dataset
+study3_SL_long <- study3_SL %>% 
+  select(c('AQ_total', 'Subject', 'offline_SL', 'online_SL'))
+
+learning_phase <- c('offline_SL', 'online_SL')
+
+study3_SL_long <- pivot_longer(
+  data = study3_SL_long,
+  cols = learning_phase,
+  names_to = c(".value", "learning_type"),
+  names_pattern = "(\\w+)_(SL)",
+  values_to = "Learning_phase"
+)
+
+phase <- c('offline', 'online')
+
+study3_SL_long <- pivot_longer(
+  data = study3_SL_long,
+  cols = phase,
+  names_to = c("Learning_phase"),
+  values_to = "SL_score"
+)
+
+# center AQ_total variable
+study3_SL_long <- study3_SL_long %>% 
+  mutate(AQ_total_centered = scale(AQ_total, center = T, scale = F))
+```
+
+```{r}
+# make long dataset
+study3_GS_long <- study3_GS %>% 
+  select(c('AQ_total', 'Subject', 'offline_GS', 'online_GS'))
+
+learning_phase <- c('offline_GS', 'online_GS')
+
+study3_GS_long <- pivot_longer(
+  data = study3_GS_long,
+  cols = learning_phase,
+  names_to = c(".value", "learning_type"),
+  names_pattern = "(\\w+)_(GS)",
+  values_to = "Learning_phase"
+)
+
+phase <- c('offline', 'online')
+
+study3_GS_long <- pivot_longer(
+  data = study3_GS_long,
+  cols = phase,
+  names_to = c("Learning_phase"),
+  values_to = "GS_score"
+)
+
+# center block variable
+study3_GS_long <- study3_GS_long %>% 
+  mutate(AQ_total_centered = scale(AQ_total, center = T, scale = F))
+```
+
+```{r}
+# make long dataset
+study3_SL_long_block <- study3_SL %>% 
+  select(c('AQ_total', 'Subject', 'block2_offline','block3_offline', 'block4_offline','block5_offline', 'block6_offline','block7_offline', 'block8_offline','block9_offline', 'block10_offline',
+                                       'block11_offline', 'block12_offline','block13_offline', 'block14_offline','block15_offline', 'block16_offline', 'block17_offline','block18_offline', 'block19_offline','block20_offline', 'block21_offline', 'block22_offline','block23_offline', 'block24_offline','block25_offline','block2_online','block3_online', 'block4_online','block5_online', 'block6_online','block7_online', 'block8_online','block9_online', 'block10_online',
+                                       'block11_online', 'block12_online','block13_online', 'block14_online','block15_online', 'block16_online', 'block17_online','block18_online', 'block19_online','block20_online',
+                                       'block21_online', 'block22_online','block23_online', 'block24_online','block25_online'))
+
+blocks <- c('block2','block3', 'block4','block5', 'block6','block7', 'block8','block9', 'block10',
+               'block11', 'block12','block13', 'block14','block15', 'block16', 'block17','block18',
+               'block19','block20', 'block21', 'block22','block23', 'block24','block25')
+
+study3_SL_long_block <- pivot_longer(
+  data = study3_SL_long_block,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Learning_phase"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Learning_phase"
+)
+
+study3_SL_long_block <- pivot_longer(
+  data = study3_SL_long_block,
+  cols = starts_with(blocks),
+  names_to = c("Block"),
+  values_to = "SL_score"
+)
+
+study3_SL_long_block <- study3_SL_long_block %>% 
+  mutate(Block = gsub('block', "", Block))
+
+# center block and AQ_total variable
+study3_SL_long_block <- study3_SL_long_block %>% 
+  mutate(Block = as.numeric(Block),
+         block_centered = scale(Block, center = T, scale = F),
+         AQ_total_centered = scale(AQ_total, center = T, scale = F))
+
+study3_SL_long_block <- study3_SL_long_block %>% 
+  drop_na()
+```
+
+```{r}
+# make long dataset
+study3_GS_long_block <- study3_GS %>% 
+  select(c('AQ_total', 'Subject', 'block2_offline','block3_offline', 'block4_offline','block5_offline', 'block6_offline','block7_offline', 'block8_offline','block9_offline', 'block10_offline',
+                                       'block11_offline', 'block12_offline','block13_offline', 'block14_offline','block15_offline', 'block16_offline', 'block17_offline','block18_offline', 'block19_offline','block20_offline', 'block21_offline', 'block22_offline','block23_offline', 'block24_offline','block25_offline','block2_online','block3_online', 'block4_online','block5_online', 'block6_online','block7_online', 'block8_online','block9_online', 'block10_online',
+                                       'block11_online', 'block12_online','block13_online', 'block14_online','block15_online', 'block16_online', 'block17_online','block18_online', 'block19_online','block20_online',
+                                       'block21_online', 'block22_online','block23_online', 'block24_online','block25_online'))
+
+blocks <- c('block2','block3', 'block4','block5', 'block6','block7', 'block8','block9', 'block10',
+               'block11', 'block12','block13', 'block14','block15', 'block16', 'block17','block18',
+               'block19','block20', 'block21', 'block22','block23', 'block24','block25')
+
+study3_GS_long_block <- pivot_longer(
+  data = study3_GS_long_block,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Learning_phase"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Learning_phase"
+)
+
+study3_GS_long_block <- pivot_longer(
+  data = study3_GS_long_block,
+  cols = starts_with(blocks),
+  names_to = c("Block"),
+  values_to = "GS_score"
+)
+
+study3_GS_long_block <- study3_GS_long_block %>% 
+  mutate(Block = gsub('block', "", Block))
+
+# center block and AQ_total variable
+study3_GS_long_block <- study3_GS_long_block %>% 
+  mutate(Block = as.numeric(Block),
+         block_centered = scale(Block, center = T, scale = F),
+         AQ_total_centered = scale(AQ_total, center = T, scale = F))
+
+study3_GS_long_block <- study3_GS_long_block %>% 
+  drop_na()
+```
+
+# Statistical learning
+## baseline model for SL
+
+```{r}
+# building model
+baseline_model_SL <- 
+  lm(SL_score ~ Learning_phase,
+       data = study3_SL_long
+       )
+
+# model outputs
+summary(baseline_model_SL)
+tab_model(baseline_model_SL, show.std = T)
+
+# assumption checks
+check_autocorrelation(baseline_model_SL)
+check_heteroscedasticity(baseline_model_SL)
+check_outliers(baseline_model_SL)
+check_model(baseline_model_SL, panel = TRUE)
+plot_model(baseline_model_SL, type = "diag")
+
+# goodness of fit indicators
+AIC_baseline_model_SL <- AIC(baseline_model_SL)
+BIC_baseline_model_SL <- BIC(baseline_model_SL)
+
+# normality test for residuals
+baseline_model_SL_residuals <- residuals(baseline_model_SL)
+lillie.test(baseline_model_SL_residuals)
+
+# normality test for learning_score
+lillie.test(study3_SL_long$SL_score)
+```
+
+## AQ model for SL
+
+```{r}
+# building model
+AQ_model_SL <- 
+  lm(SL_score ~ Learning_phase + AQ_total + Learning_phase*AQ_total,
+       data = study3_SL_long
+       )
+
+# model outputs
+summary(AQ_model_SL)
+tab_model(AQ_model_SL, show.std = T)
+
+# assumption checks
+check_collinearity(AQ_model_SL)
+check_autocorrelation(AQ_model_SL)
+check_heteroscedasticity(AQ_model_SL)
+check_outliers(AQ_model_SL)
+check_model(AQ_model_SL, panel = TRUE)
+plot_model(AQ_model_SL, type = "diag")
+
+# visualizing the interactions
+plot_model(AQ_model_SL, type = "int")
+
+# goodness of fit indicators
+AIC_AQ_model_SL <- AIC(AQ_model_SL)
+BIC_AQ_model_SL <- BIC(AQ_model_SL)
+
+# normality test for residuals
+AQ_model_SL_residuals <- residuals(AQ_model_SL)
+lillie.test(AQ_model_SL_residuals)
+
+# normality test for learning_score
+lillie.test(study3_SL_long$SL_score)
+```
+
+## ANOVA test for baseline and AQ model
+
+```{r}
+anova(baseline_model_SL, AQ_model_SL)
+```
+
+## Goodness of fit indicators
+
+```{r}
+# AIC
+AIC_baseline_model_SL
+AIC_AQ_model_SL
+
+# BIC
+BIC_baseline_model_SL
+BIC_AQ_model_SL
+```
+
+## Bootstrap
+### baseline model
+
+```{r}
+# case method
+baseline_model_boot_case <- Boot(baseline_model_SL, f = coef, labels = names(coef(baseline_model_SL)), R = 1000, method = "case", ncores = 1)
+
+summary(baseline_model_boot_case)
+confint(baseline_model_boot_case)
+```
+
+```{r}
+# residual method 
+baseline_model_boot_residual <- Boot(baseline_model_SL, f = coef, labels = names(coef(baseline_model_SL)), R = 1000, method = "residual", ncores = 1)
+
+summary(baseline_model_boot_residual)
+confint(baseline_model_boot_residual)
+```
+
+### AQ model
+
+```{r}
+# case method
+AQ_model_boot_case <- Boot(AQ_model_SL, f = coef, labels = names(coef(AQ_model_SL)), R = 1000, method = "case", ncores = 1)
+
+summary(AQ_model_boot_case)
+confint(AQ_model_boot_case)
+```
+
+```{r}
+# residual method 
+AQ_model_boot_residual <- Boot(AQ_model_SL, f = coef, labels = names(coef(AQ_model_SL)), R = 1000, method = "residual", ncores = 1)
+
+summary(AQ_model_boot_residual)
+confint(AQ_model_boot_residual)
+```
+
+# General skill learning
+## baseline model for GS
+
+```{r}
+# building model
+baseline_model_GS <- 
+  lm(GS_score ~ Learning_phase,
+       data = study3_GS_long
+       )
+
+# model outputs
+summary(baseline_model_GS)
+tab_model(baseline_model_GS, show.std = T)
+
+# assumption checks
+check_autocorrelation(baseline_model_GS)
+check_heteroscedasticity(baseline_model_GS)
+check_outliers(baseline_model_GS)
+check_model(baseline_model_GS, panel = TRUE)
+plot_model(baseline_model_GS, type = "diag")
+
+# goodness of fit indicators
+AIC_baseline_model_GS <- AIC(baseline_model_GS)
+BIC_baseline_model_GS <- BIC(baseline_model_GS)
+
+# normality test for residuals
+baseline_model_GS_residuals <- residuals(baseline_model_GS)
+lillie.test(baseline_model_GS_residuals)
+
+# normality test for learning_score
+lillie.test(study3_GS_long$GS_score)
+```
+
+## AQ model for GS
+
+```{r}
+# building model
+AQ_model_GS <- 
+  lm(GS_score ~ Learning_phase + AQ_total + Learning_phase*AQ_total,
+       data = study3_GS_long
+       )
+
+# model outputs
+summary(AQ_model_GS)
+tab_model(AQ_model_GS, show.std = T)
+
+# assumption checks
+check_collinearity(AQ_model_GS)
+check_autocorrelation(AQ_model_GS)
+check_heteroscedasticity(AQ_model_GS)
+check_outliers(AQ_model_GS)
+check_model(AQ_model_GS, panel = TRUE)
+plot_model(AQ_model_GS, type = "diag")
+
+# visualizing the interactions
+plot_model(AQ_model_GS, type = "int")
+
+# goodness of fit indicators
+AIC_AQ_model_GS <- AIC(AQ_model_GS)
+BIC_AQ_model_GS <- BIC(AQ_model_GS)
+
+# normality test for residuals
+AQ_model_GS_residuals <- residuals(AQ_model_GS)
+lillie.test(AQ_model_GS_residuals)
+
+# normality test for learning_score
+lillie.test(study3_GS_long$GS_score)
+```
+
+## ANOVA test for baseline and AQ model
+
+```{r}
+anova(baseline_model_GS, AQ_model_GS)
+```
+
+## Goodness of fit indicators
+
+```{r}
+# AIC
+AIC_baseline_model_GS
+AIC_AQ_model_GS
+
+# BIC
+BIC_baseline_model_GS
+BIC_AQ_model_GS
+```
+
+## Bootstrap
+### baseline model
+
+```{r}
+# case method
+baseline_model_boot_case <- Boot(baseline_model_GS, f = coef, labels = names(coef(baseline_model_GS)), R = 1000, method = "case", ncores = 1)
+
+summary(baseline_model_boot_case)
+confint(baseline_model_boot_case)
+```
+
+```{r}
+# residual method 
+baseline_model_boot_residual <- Boot(baseline_model_GS, f = coef, labels = names(coef(baseline_model_GS)), R = 1000, method = "residual", ncores = 1)
+
+summary(baseline_model_boot_residual)
+confint(baseline_model_boot_residual)
+```
+
+### AQ model
+
+```{r}
+# case method
+AQ_model_boot_case <- Boot(AQ_model_GS, f = coef, labels = names(coef(AQ_model_GS)), R = 1000, method = "case", ncores = 1)
+
+summary(AQ_model_boot_case)
+confint(AQ_model_boot_case)
+```
+
+```{r}
+# residual method 
+AQ_model_boot_residual <- Boot(AQ_model_GS, f = coef, labels = names(coef(AQ_model_GS)), R = 1000, method = "residual", ncores = 1)
+
+summary(AQ_model_boot_residual)
+confint(AQ_model_boot_residual)
+```
+
+# Statistical learning blockwise
+## baseline model for SL
+
+```{r}
+# building model
+baseline_model_SL <- 
+  lm(SL_score ~ Learning_phase + Block + Learning_phase*Block,
+       data = study3_SL_long_block
+       )
+
+# model outputs
+summary(baseline_model_SL)
+tab_model(baseline_model_SL, show.std = T)
+
+# assumption checks
+check_collinearity(baseline_model_SL)
+check_autocorrelation(baseline_model_SL)
+check_heteroscedasticity(baseline_model_SL)
+check_outliers(baseline_model_SL)
+check_model(baseline_model_SL, panel = TRUE)
+plot_model(baseline_model_SL, type = "diag")
+
+# visualizing the interactions
+plot_model(baseline_model_SL, type = "int")
+
+# goodness of fit indicators
+AIC_baseline_model_SL <- AIC(baseline_model_SL)
+BIC_baseline_model_SL <- BIC(baseline_model_SL)
+
+# normality test for residuals
+baseline_model_SL_residuals <- residuals(baseline_model_SL)
+lillie.test(baseline_model_SL_residuals)
+
+# normality test for learning_score
+lillie.test(study3_SL_long_block$SL_score)
+```
+
+## AQ model for SL
+
+```{r}
+# building model
+AQ_model_SL <- 
+  lm(SL_score ~ Learning_phase + Block + AQ_total + Learning_phase*Block*AQ_total,
+       data = study3_SL_long_block
+       )
+
+# model outputs
+summary(AQ_model_SL)
+tab_model(AQ_model_SL, show.std = T)
+
+# assumption checks
+check_collinearity(AQ_model_SL)
+check_autocorrelation(AQ_model_SL)
+check_heteroscedasticity(AQ_model_SL)
+check_outliers(AQ_model_SL)
+check_model(AQ_model_SL, panel = TRUE)
+plot_model(AQ_model_SL, type = "diag")
+
+# visualizing the interactions
+plot_model(AQ_model_SL, type = "int")
+
+# goodness of fit indicators
+AIC_AQ_model_SL <- AIC(AQ_model_SL)
+BIC_AQ_model_SL <- BIC(AQ_model_SL)
+
+# normality test for residuals
+AQ_model_SL_residuals <- residuals(AQ_model_SL)
+lillie.test(AQ_model_SL_residuals)
+
+# normality test for learning_score
+lillie.test(study3_SL_long_block$SL_score)
+```
+
+## ANOVA test for baseline and AQ model
+
+```{r}
+anova(baseline_model_SL, AQ_model_SL)
+```
+
+## Goodness of fit indicators
+
+```{r}
+#AIC
+AIC_baseline_model_SL
+AIC_AQ_model_SL
+
+#BIC
+BIC_baseline_model_SL
+BIC_AQ_model_SL
+```
+
+## Bootstrap
+### baseline model
+
+```{r}
+# case method
+baseline_model_boot_case <- Boot(baseline_model_SL, f = coef, labels = names(coef(baseline_model_SL)), R = 1000, method = "case", ncores = 1)
+
+summary(baseline_model_boot_case)
+confint(baseline_model_boot_case)
+```
+
+```{r}
+# residual method 
+baseline_model_boot_residual <- Boot(baseline_model_SL, f = coef, labels = names(coef(baseline_model_SL)), R = 1000,  method = "residual", ncores = 1)
+
+summary(baseline_model_boot_residual)
+confint(baseline_model_boot_residual)
+```
+
+### AQ model
+
+```{r}
+# case method
+AQ_model_boot_case <- Boot(AQ_model_SL, f = coef, labels = names(coef(AQ_model_SL)), R = 1000, method = "case", ncores = 1)
+
+summary(AQ_model_boot_case)
+confint(AQ_model_boot_case)
+```
+
+```{r}
+# residual method 
+AQ_model_boot_residual <- Boot(AQ_model_SL, f = coef, labels = names(coef(AQ_model_SL)), R = 1000,  method = "residual", ncores = 1)
+
+summary(AQ_model_boot_residual)
+confint(AQ_model_boot_residual)
+```
+
+# General skill learning blockwise
+## baseline model for GS
+
+```{r}
+# building model
+baseline_model_GS <- 
+  lm(GS_score ~ Learning_phase + Block + Learning_phase*Block,
+       data = study3_GS_long_block
+       )
+
+# model outputs
+summary(baseline_model_GS)
+tab_model(baseline_model_GS, show.std = T)
+
+# assumption checks
+check_collinearity(baseline_model_GS)
+check_autocorrelation(baseline_model_GS)
+check_heteroscedasticity(baseline_model_GS)
+check_outliers(baseline_model_GS)
+check_model(baseline_model_GS, panel = TRUE)
+plot_model(baseline_model_GS, type = "diag")
+
+# visualizing the interactions
+plot_model(baseline_model_GS, type = "int")
+
+# goodness of fit indicators
+AIC_baseline_model_GS <- AIC(baseline_model_GS)
+BIC_baseline_model_GS <- BIC(baseline_model_GS)
+
+# normality test for residuals
+baseline_model_GS_residuals <- residuals(baseline_model_GS)
+lillie.test(baseline_model_GS_residuals)
+
+# normality test for learning_score
+lillie.test(study3_GS_long_block$GS_score)
+```
+
+## AQ model for GS
+
+```{r}
+# building model
+AQ_model_GS <- 
+  lm(GS_score ~ Learning_phase + Block + AQ_total + Learning_phase*Block*AQ_total,
+       data = study3_GS_long_block
+       )
+
+# model outputs
+summary(AQ_model_GS)
+tab_model(AQ_model_GS, show.std = T)
+
+# assumption checks
+check_collinearity(AQ_model_GS)
+check_autocorrelation(AQ_model_GS)
+check_heteroscedasticity(AQ_model_GS)
+check_outliers(AQ_model_GS)
+check_model(AQ_model_GS, panel = TRUE)
+plot_model(AQ_model_GS, type = "diag")
+
+# visualizing the interactions
+plot_model(AQ_model_GS, type = "int")
+
+# goodness of fit indicators
+AIC_AQ_model_GS <- AIC(AQ_model_GS)
+BIC_AQ_model_GS <- BIC(AQ_model_GS)
+
+# normality test for residuals
+AQ_model_GS_residuals <- residuals(AQ_model_GS)
+lillie.test(AQ_model_GS_residuals)
+
+# normality test for learning_score
+lillie.test(study3_GS_long_block$GS_score)
+```
+
+## ANOVA test for baseline and AQ model
+
+```{r}
+anova(baseline_model_GS, AQ_model_GS)
+```
+
+## Goodness of fit indicators
+
+```{r}
+#AIC
+AIC_baseline_model_GS
+AIC_AQ_model_GS
+
+#BIC
+BIC_baseline_model_GS
+BIC_AQ_model_GS
+```
+
+## Bootstrap
+### baseline model
+
+```{r}
+# case method
+baseline_model_boot_case <- Boot(baseline_model_GS, f = coef, labels = names(coef(baseline_model_GS)), R = 1000, method = "case", ncores = 1)
+
+summary(baseline_model_boot_case)
+confint(baseline_model_boot_case)
+```
+
+```{r}
+# residual method 
+baseline_model_boot_residual <- Boot(baseline_model_GS, f = coef, labels = names(coef(baseline_model_GS)), R = 1000,  method = "residual", ncores = 1)
+
+summary(baseline_model_boot_residual)
+confint(baseline_model_boot_residual)
+```
+
+### AQ model
+
+```{r}
+# case method
+AQ_model_boot_case <- Boot(AQ_model_GS, f = coef, labels = names(coef(AQ_model_GS)), R = 1000, method = "case", ncores = 1)
+
+summary(AQ_model_boot_case)
+confint(AQ_model_boot_case)
+```
+
+```{r}
+# residual method 
+AQ_model_boot_residual <- Boot(AQ_model_GS, f = coef, labels = names(coef(AQ_model_GS)), R = 1000,  method = "residual", ncores = 1)
+
+summary(AQ_model_boot_residual)
+confint(AQ_model_boot_residual)
+```

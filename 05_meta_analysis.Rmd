@@ -1,0 +1,218 @@
+---
+title: "meta_analysis"
+author: "Cintia Anna Nagy"
+date: "`r Sys.Date()`"
+output: html_document
+---
+# import packages
+
+```{r message = FALSE}
+library(tidyverse)
+library(ggplot2)
+library(readr)
+library(meta)
+```
+
+# import data
+
+```{r message = FALSE}
+study1_SL <- read_csv("processed_data/study_1/data_study_1_SL_offline_online.csv")
+study2_SL <- read_csv("processed_data/study_2/data_study_2_SL_offline_online.csv")
+study3_SL <- read_csv("processed_data/study_3/data_study_3_SL_offline_online.csv")
+
+study1_GS <- read_csv("processed_data/study_1/data_study_1_GS_offline_online.csv")
+study2_GS <- read_csv("processed_data/study_2/data_study_2_GS_offline_online.csv")
+study3_GS <- read_csv("processed_data/study_3/data_study_3_GS_offline_online.csv")
+```
+
+# Offline statistical learning in the three studies
+
+```{r}
+metadat_SL_off <- data.frame(n.e = c(length(study1_SL$offline_SL[study1_SL$Group == '1']), length(study2_SL$offline_SL[study2_SL$Group == '1']), length(study3_SL$offline_SL[study3_SL$Group == '1'])),
+                      mean.e = c(mean(study1_SL$offline_SL[study1_SL$Group == '1']), mean(study2_SL$offline_SL[study2_SL$Group == '1']), mean(study3_SL$offline_SL[study3_SL$Group == '1'])),
+                      sd.e = c(sd(study1_SL$offline_SL[study1_SL$Group == '1']), sd(study2_SL$offline_SL[study2_SL$Group == '1']), sd(study3_SL$offline_SL[study3_SL$Group == '1'])),
+                      n.c = c(length(study1_SL$offline_SL[study1_SL$Group == '0']), length(study2_SL$offline_SL[study2_SL$Group == '0']), length(study3_SL$offline_SL[study3_SL$Group == '0'])),
+                      mean.c = c(mean(study1_SL$offline_SL[study1_SL$Group == '0']), mean(study2_SL$offline_SL[study2_SL$Group == '0']), mean(study3_SL$offline_SL[study3_SL$Group == '0'])),
+                        sd.c = c(sd(study1_SL$offline_SL[study1_SL$Group == '0']), sd(study2_SL$offline_SL[study2_SL$Group == '0']), sd(study3_SL$offline_SL[study3_SL$Group == '0'])),
+                      studlab = c("Study 1", "Study 2", "Study 3")
+                      )
+
+m.cont_SL_off <- metacont(n.e = n.e,
+                   mean.e = mean.e,
+                   sd.e = sd.e,
+                   n.c = n.c,
+                   mean.c = mean.c,
+                   sd.c = sd.c,
+                   studlab = studlab,
+                   data = metadat_SL_off,
+                   sm = "SMD",
+                   method.smd = "Hedges",
+                   comb.fixed = T,
+                   comb.random = F,
+                   method.tau = "REML",
+                   hakn = TRUE,
+                   title = "Offline SL")
+
+summary(m.cont_SL_off)
+
+#png(file = "meta_stat_off.png", width = 3200, height = 2000, res = 300)
+
+forest.meta(m.cont_SL_off,
+            label.e = "ASD/ Higher AQ",
+            label.c = "NTP/ Lower AQ",
+            comb.common = T,
+            text.common = "Fixed-effect model",
+            print.I2.ci = T,
+            print.tau2.ci = T,
+            print.Q = T,
+            print.pval.Q = T,
+            test.overall = T,
+            details = T
+            )
+
+dev.off()
+```
+# Online statistical learning in the three studies
+
+```{r}
+metadat_SL_on <- data.frame(n.e = c(length(study1_SL$online_SL[study1_SL$Group == '1']), length(study2_SL$online_SL[study2_SL$Group == '1']), length(study3_SL$online_SL[study3_SL$Group == '1'])),
+                            mean.e = c(mean(study1_SL$online_SL[study1_SL$Group == '1']), mean(study2_SL$online_SL[study2_SL$Group == '1']), mean(study3_SL$online_SL[study3_SL$Group == '1'])),
+                             sd.e = c(sd(study1_SL$online_SL[study1_SL$Group == '1']), sd(study2_SL$online_SL[study2_SL$Group == '1']), sd(study3_SL$online_SL[study3_SL$Group == '1'])),
+                             n.c = c(length(study1_SL$online_SL[study1_SL$Group == '0']), length(study2_SL$online_SL[study2_SL$Group == '0']), length(study3_SL$online_SL[study3_SL$Group == '0'])),
+                             mean.c = c(mean(study1_SL$online_SL[study1_SL$Group == '0']), mean(study2_SL$online_SL[study2_SL$Group == '0']), mean(study3_SL$online_SL[study3_SL$Group == '0'])),
+                             sd.c = c(sd(study1_SL$online_SL[study1_SL$Group == '0']), sd(study2_SL$online_SL[study2_SL$Group == '0']), sd(study3_SL$online_SL[study3_SL$Group == '0'])),
+                             studlab = c("Study 1", "Study 2", "Study 3")
+)
+
+m.cont_SL_on <- metacont(n.e = n.e,
+                          mean.e = mean.e,
+                          sd.e = sd.e,
+                          n.c = n.c,
+                          mean.c = mean.c,
+                          sd.c = sd.c,
+                          studlab = studlab,
+                          data = metadat_SL_on,
+                          sm = "SMD",
+                          method.smd = "Hedges",
+                          comb.fixed = T,
+                          comb.random = F,
+                          method.tau = "REML",
+                          hakn = TRUE,
+                          title = "Online SL")
+
+summary(m.cont_SL_on)
+
+#png(file = "meta_stat_on.png", width = 3200, height = 2000, res = 300)
+
+forest.meta(m.cont_SL_on,
+            label.e = "ASD/ Higher AQ",
+            label.c = "NTP/ Lower AQ",
+            comb.common = T,
+            text.common = "Fixed-effect model",
+            print.I2.ci = T,
+            print.tau2.ci = T,
+            print.Q = T,
+            print.pval.Q = T,
+            test.overall = T,
+            details = T
+            )
+
+dev.off()
+```
+# Offline general skill learning in the three studies
+
+```{r}
+metadat_GS_off <- data.frame(n.e = c(length(study1_GS$offline_GS[study1_GS$Group == '1']), length(study2_GS$offline_GS[study2_GS$Group == '1']), length(study3_GS$offline_GS[study3_GS$Group == '1'])),
+                             mean.e = c(mean(study1_GS$offline_GS[study1_GS$Group == '1']), mean(study2_GS$offline_GS[study2_GS$Group == '1']), mean(study3_GS$offline_GS[study3_GS$Group == '1'])),
+                             sd.e = c(sd(study1_GS$offline_GS[study1_GS$Group == '1']), sd(study2_GS$offline_GS[study2_GS$Group == '1']), sd(study3_GS$offline_GS[study3_GS$Group == '1'])),
+                             n.c = c(length(study1_GS$offline_GS[study1_GS$Group == '0']), length(study2_GS$offline_GS[study2_GS$Group == '0']), length(study3_GS$offline_GS[study3_GS$Group == '0'])),
+                             mean.c = c(mean(study1_GS$offline_GS[study1_GS$Group == '0']), mean(study2_GS$offline_GS[study2_GS$Group == '0']), mean(study3_GS$offline_GS[study3_GS$Group == '0'])),
+                             sd.c = c(sd(study1_GS$offline_GS[study1_GS$Group == '0']), sd(study2_GS$offline_GS[study2_GS$Group == '0']), sd(study3_GS$offline_GS[study3_GS$Group == '0'])),
+                             studlab = c("Study 1", "Study 2", "Study 3")
+)
+
+m.cont_GS_off <- metacont(n.e = n.e,
+                          mean.e = mean.e,
+                          sd.e = sd.e,
+                          n.c = n.c,
+                          mean.c = mean.c,
+                          sd.c = sd.c,
+                          studlab = studlab,
+                          data = metadat_GS_off,
+                          sm = "SMD",
+                          method.smd = "Hedges",
+                          comb.fixed = T,
+                          comb.random = F,
+                          method.tau = "REML",
+                          hakn = TRUE,
+                          title = "Offline GS")
+
+summary(m.cont_GS_off)
+
+#png(file = "meta_genskill_off.png", width = 3200, height = 2000, res = 300)
+
+forest.meta(m.cont_GS_off,
+            label.e = "ASD/ Higher AQ",
+            label.c = "NTP/ Lower AQ",
+            comb.common = T,
+            text.common = "Fixed-effect model",
+            print.I2.ci = T,
+            print.tau2.ci = T,
+            print.Q = T,
+            print.pval.Q = T,
+            test.overall = T,
+            details = T
+            )
+
+dev.off()
+```
+# Online general skill learning in the three studies
+
+```{r}
+metadat_GS_on <- data.frame(n.e = c(length(study1_GS$online_GS[study1_GS$Group == '1']), length(study2_GS$online_GS[study2_GS$Group == '1']), length(study3_GS$online_GS[study3_GS$Group == '1'])),
+                            mean.e = c(mean(study1_GS$online_GS[study1_GS$Group == '1']), mean(study2_GS$online_GS[study2_GS$Group == '1']), mean(study3_GS$online_GS[study3_GS$Group == '1'])),
+                            sd.e = c(sd(study1_GS$online_GS[study1_GS$Group == '1']), sd(study2_GS$online_GS[study2_GS$Group == '1']), sd(study3_GS$online_GS[study3_GS$Group == '1'])),
+                            n.c = c(length(study1_GS$online_GS[study1_GS$Group == '0']), length(study2_GS$online_GS[study2_GS$Group == '0']), length(study3_GS$online_GS[study3_GS$Group == '0'])),
+                            mean.c = c(mean(study1_GS$online_GS[study1_GS$Group == '0']), mean(study2_GS$online_GS[study2_GS$Group == '0']), mean(study3_GS$online_GS[study3_GS$Group == '0'])),
+                            sd.c = c(sd(study1_GS$online_GS[study1_GS$Group == '0']), sd(study2_GS$online_GS[study2_GS$Group == '0']), sd(study3_GS$online_GS[study3_GS$Group == '0'])),
+                            studlab = c("Study 1", "Study 2", "Study 3")
+)
+
+m.cont_GS_on <- metacont(n.e = n.e,
+                         mean.e = mean.e,
+                         sd.e = sd.e,
+                         n.c = n.c,
+                         mean.c = mean.c,
+                         sd.c = sd.c,
+                         studlab = studlab,
+                         data = metadat_GS_on,
+                         sm = "SMD",
+                         method.smd = "Hedges",
+                         comb.fixed = T,
+                         comb.random = F,
+                         method.tau = "REML",
+                         hakn = TRUE,
+                         title = "Online GS")
+
+summary(m.cont_GS_on)
+
+
+#png(file = "meta_genskill_on.png", width = 3200, height = 2000, res = 300)
+
+forest.meta(m.cont_GS_on,
+            label.e = "ASD/ Higher AQ",
+            label.c = "NTP/ Lower AQ",
+            comb.common = T,
+            text.common = "Fixed-effect model",
+            print.I2.ci = T,
+            print.tau2.ci = T,
+            print.Q = T,
+            print.pval.Q = T,
+            test.overall = T,
+            details = T
+            )
+
+
+dev.off()
+```
+

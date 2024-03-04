@@ -1,0 +1,168 @@
+---
+title: "general"
+author: "Cintia Anna Nagy"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# import packages
+
+```{r message = FALSE}
+library(tidyverse)
+library(stats)
+library(rstatix)
+```
+
+# import data
+
+```{r message = FALSE}
+study1 <- read_delim("processed_data/study_1/data_study_1_general.csv", delim = ';')
+study2 <- read_delim("processed_data/study_2/data_study_2_general.csv", delim = ';')
+study3 <- read_delim("processed_data/study_3/data_study_3_general.csv", delim = ';')
+```
+
+# preprocess data
+## Study 1
+
+```{r}
+study1 <- study1 %>% 
+  mutate(age = as.numeric(age))
+
+study1_NTP <- study1 %>% 
+  filter(Group == 0)
+
+study1_ASD <- study1 %>% 
+  filter(Group == 1)
+```
+
+## Study 2
+
+```{r}
+study2 <- study2 %>% 
+  mutate(age = as.numeric(age),
+         CSPAN = as.numeric(CSPAN))
+
+study2_NTP <- study2 %>% 
+  filter(Group == 0)
+
+study2_ASD <- study2 %>% 
+  filter(Group == 1)
+```
+
+## Study 3
+
+```{r}
+study3 <- study3 %>% 
+  mutate(age = as.numeric(age))
+  
+study3_lowAQ <- study3 %>% 
+  filter(Group == 0)
+
+study3_highAQ <- study3 %>% 
+  filter(Group == 1)
+```
+
+# Study 1
+## age
+
+```{r}
+shapiro.test(study1_NTP$age)
+shapiro.test(study1_ASD$age)
+mean(study1_NTP$age)
+sd(study1_NTP$age)
+mean(study1_ASD$age)
+sd(study1_ASD$age)
+t.test(study1_NTP$age, study1_ASD$age)
+cohens_d(study1, age ~ Group)
+```
+
+## sex
+
+```{r}
+study1_sex_table = table(study1$Group, study1$sex)
+study1_sex_table
+chisq.test(study1_sex_table, correct = FALSE)
+```
+
+## cognitive capacity
+
+```{r}
+shapiro.test(study1_NTP$IQ)
+shapiro.test(study1_ASD$IQ)
+mean(study1_NTP$IQ)
+sd(study1_NTP$IQ)
+mean(study1_ASD$IQ)
+sd(study1_ASD$IQ)
+wilcox.test(study1_NTP$IQ, study1_ASD$IQ)
+wilcox_effsize(study1, IQ ~ Group)
+```
+
+# Study 2
+## age
+
+```{r}
+shapiro.test(study2_NTP$age)
+shapiro.test(study2_ASD$age)
+mean(study2_NTP$age)
+sd(study2_NTP$age)
+mean(study2_ASD$age)
+sd(study2_ASD$age)
+wilcox.test(study2_NTP$age, study2_ASD$age)
+wilcox_effsize(study2, age ~ Group)
+```
+
+## sex
+
+```{r}
+study2_sex_table = table(study2$Group, study2$sex)
+study2_sex_table
+chisq.test(study2_sex_table, correct = FALSE)
+```
+
+## cognitive capacity
+
+```{r}
+shapiro.test(study2_NTP$CSPAN)
+shapiro.test(study2_ASD$CSPAN)
+mean(study2_NTP$CSPAN)
+sd(study2_NTP$CSPAN)
+mean(study2_ASD$CSPAN)
+sd(study2_ASD$CSPAN)
+t.test(study2_NTP$CSPAN, study2_ASD$CSPAN)
+cohens_d(study2, CSPAN ~ Group)
+```
+
+# Study 3
+## age
+
+```{r}
+shapiro.test(study3_lowAQ$age)
+shapiro.test(study3_highAQ$age)
+mean(study3_lowAQ$age)
+sd(study3_lowAQ$age)
+mean(study3_highAQ$age)
+sd(study3_highAQ$age)
+wilcox.test(study3_lowAQ$age, study3_highAQ$age)
+wilcox_effsize(study3, age ~ Group)
+```
+
+## sex
+
+```{r}
+study3_sex_table = table(study3$Group, study3$sex)
+study3_sex_table
+chisq.test(study3_sex_table, correct = FALSE)
+```
+
+## cognitive capacity
+
+```{r}
+shapiro.test(study3_lowAQ$digit_span)
+shapiro.test(study3_highAQ$digit_span)
+mean(study3_lowAQ$digit_span)
+sd(study3_lowAQ$digit_span)
+mean(study3_highAQ$digit_span)
+sd(study3_highAQ$digit_span)
+wilcox.test(study3_lowAQ$digit_span, study3_highAQ$digit_span)
+wilcox_effsize(study3, digit_span ~ Group)
+```

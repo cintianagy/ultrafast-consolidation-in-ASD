@@ -1,0 +1,1246 @@
+---
+title: "offline_online_analysis"
+author: "Cintia Anna Nagy"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# import packages
+
+```{r message = FALSE}
+library(tidyverse)
+library(rstatix)
+library(readr)
+library(dplyr)
+library(car)
+```
+
+# import data
+
+```{r message = FALSE}
+study1_SL <- read_csv("processed_data/study_1/data_study_1_SL_offline_online.csv")
+study1_GS <- read_csv("processed_data/study_1/data_study_1_GS_offline_online.csv")
+study2_SL <- read_csv("processed_data/study_2/data_study_2_SL_offline_online.csv")
+study2_GS <- read_csv("processed_data/study_2/data_study_2_GS_offline_online.csv")
+study3_SL <- read_csv("processed_data/study_3/data_study_3_SL_offline_online.csv")
+study3_GS <- read_csv("processed_data/study_3/data_study_3_GS_offline_online.csv")
+```
+
+# preprocess data
+## Study 1
+
+```{r}
+# make long dataset
+study1_SL_long <- study1_SL %>% 
+  select(c('Group', 'Subject', 'offline_SL', 'online_SL'))
+
+learning_phase <- c('offline_SL', 'online_SL')
+
+study1_SL_long <- pivot_longer(
+  data = study1_SL_long,
+  cols = learning_phase,
+  names_to = c(".value", "learning_type"),
+  names_pattern = "(\\w+)_(SL)",
+  values_to = "Learning_phase"
+)
+
+phase <- c('offline', 'online')
+
+study1_SL_long <- pivot_longer(
+  data = study1_SL_long,
+  cols = phase,
+  names_to = c("Learning_phase"),
+  values_to = "SL_score"
+)
+
+# create unique id
+study1_SL_long <- study1_SL_long %>% 
+  mutate(Subject = ifelse(Group == 0, paste0("NTP", Subject), Subject),
+         Subject = ifelse(Group == 1, paste0("ASD", Subject), Subject))
+
+study1_SL_long <- study1_SL_long %>% 
+ drop_na()
+```
+
+```{r}
+# make long dataset
+study1_GS_long <- study1_GS %>% 
+  select(c('Group', 'Subject', 'offline_GS', 'online_GS'))
+
+learning_phase <- c('offline_GS', 'online_GS')
+
+study1_GS_long <- pivot_longer(
+  data = study1_GS_long,
+  cols = learning_phase,
+  names_to = c(".value", "learning_type"),
+  names_pattern = "(\\w+)_(GS)",
+  values_to = "Learning_phase"
+)
+
+phase <- c('offline', 'online')
+
+study1_GS_long <- pivot_longer(
+  data = study1_GS_long,
+  cols = phase,
+  names_to = c("Learning_phase"),
+  values_to = "GS_score"
+)
+
+# create unique id
+study1_GS_long <- study1_GS_long %>% 
+  mutate(Subject = ifelse(Group == 0, paste0("NTP", Subject), Subject),
+         Subject = ifelse(Group == 1, paste0("ASD", Subject), Subject))
+
+study1_GS_long <- study1_GS_long %>% 
+ drop_na()
+```
+
+```{r}
+# make long dataset
+study1_SL_long_block <- study1_SL %>% 
+  select(c('Group', 'Subject', 'block2_offline','block3_offline', 'block4_offline','block5_offline', 'block6_offline','block7_offline', 'block8_offline','block9_offline', 'block10_offline',
+                                       'block11_offline', 'block12_offline','block13_offline', 'block14_offline','block15_offline', 'block16_offline', 'block17_offline','block18_offline', 'block19_offline','block20_offline', 'block2_online','block3_online', 'block4_online','block5_online', 'block6_online','block7_online', 'block8_online','block9_online', 'block10_online',
+                                       'block11_online', 'block12_online','block13_online', 'block14_online','block15_online', 'block16_online', 'block17_online','block18_online', 'block19_online','block20_online'))
+
+blocks <- c('block2','block3', 'block4','block5', 'block6','block7', 'block8','block9', 'block10',
+               'block11', 'block12','block13', 'block14','block15', 'block16', 'block17','block18',
+               'block19','block20')
+
+study1_SL_long_block <- pivot_longer(
+  data = study1_SL_long_block,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Learning_phase"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Learning_phase"
+)
+
+study1_SL_long_block <- pivot_longer(
+  data = study1_SL_long_block,
+  cols = starts_with(blocks),
+  names_to = c("Block"),
+  values_to = "SL_score"
+)
+
+study1_SL_long_block <- study1_SL_long_block %>% 
+  mutate(Block = gsub('block', "", Block))
+
+# create unique id
+study1_SL_long_block <- study1_SL_long_block %>% 
+  mutate(Subject = ifelse(Group == 0, paste0("NTP", Subject), Subject),
+         Subject = ifelse(Group == 1, paste0("ASD", Subject), Subject))
+
+study1_SL_long_block <- study1_SL_long_block %>% 
+ drop_na()
+```
+
+```{r}
+# make long dataset
+study1_GS_long_block <- study1_GS %>% 
+  select(c('Group','Subject', 'block2_offline','block3_offline', 'block4_offline','block5_offline', 'block6_offline','block7_offline', 'block8_offline','block9_offline', 'block10_offline',
+                                       'block11_offline', 'block12_offline','block13_offline', 'block14_offline','block15_offline', 'block16_offline', 'block17_offline','block18_offline', 'block19_offline','block20_offline','block2_online','block3_online', 'block4_online','block5_online', 'block6_online','block7_online', 'block8_online','block9_online', 'block10_online',
+                                       'block11_online', 'block12_online','block13_online', 'block14_online','block15_online', 'block16_online', 'block17_online','block18_online', 'block19_online','block20_online'))
+
+blocks <- c('block2','block3', 'block4','block5', 'block6','block7', 'block8','block9', 'block10',
+               'block11', 'block12','block13', 'block14','block15', 'block16', 'block17','block18',
+               'block19','block20')
+
+study1_GS_long_block <- pivot_longer(
+  data = study1_GS_long_block,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Learning_phase"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Learning_phase"
+)
+
+study1_GS_long_block <- pivot_longer(
+  data = study1_GS_long_block,
+  cols = starts_with(blocks),
+  names_to = c("Block"),
+  values_to = "GS_score"
+)
+
+study1_GS_long_block <- study1_GS_long_block %>% 
+  mutate(Block = gsub('block', "", Block))
+
+# create unique id
+study1_GSL_long_block <- study1_GS_long_block %>% 
+  mutate(Subject = ifelse(Group == 0, paste0("NTP", Subject), Subject),
+         Subject = ifelse(Group == 1, paste0("ASD", Subject), Subject))
+
+study1_GS_long_block <- study1_GS_long_block %>% 
+ drop_na()
+```
+
+## Study 2
+
+```{r}
+# make long dataset
+study2_SL_long <- study2_SL %>% 
+  select(c('Group', 'Subject', 'offline_SL', 'online_SL'))
+
+learning_phase <- c('offline_SL', 'online_SL')
+
+study2_SL_long <- pivot_longer(
+  data = study2_SL_long,
+  cols = learning_phase,
+  names_to = c(".value", "learning_type"),
+  names_pattern = "(\\w+)_(SL)",
+  values_to = "Learning_phase"
+)
+
+phase <- c('offline', 'online')
+
+study2_SL_long <- pivot_longer(
+  data = study2_SL_long,
+  cols = phase,
+  names_to = c("Learning_phase"),
+  values_to = "SL_score"
+)
+
+# create unique id
+study2_SL_long <- study2_SL_long %>% 
+  mutate(Subject = ifelse(Group == 0, paste0("NTP", Subject), Subject),
+         Subject = ifelse(Group == 1, paste0("ASD", Subject), Subject))
+
+study2_SL_long <- study2_SL_long %>% 
+ drop_na()
+```
+
+```{r}
+# make long dataset
+study2_GS_long <- study2_GS %>% 
+  select(c('Group', 'Subject', 'offline_GS', 'online_GS'))
+
+learning_phase <- c('offline_GS', 'online_GS')
+
+study2_GS_long <- pivot_longer(
+  data = study2_GS_long,
+  cols = learning_phase,
+  names_to = c(".value", "learning_type"),
+  names_pattern = "(\\w+)_(GS)",
+  values_to = "Learning_phase"
+)
+
+phase <- c('offline', 'online')
+
+study2_GS_long <- pivot_longer(
+  data = study2_GS_long,
+  cols = phase,
+  names_to = c("Learning_phase"),
+  values_to = "GS_score"
+)
+
+# create unique id
+study2_GS_long <- study2_GS_long %>% 
+  mutate(Subject = ifelse(Group == 0, paste0("NTP", Subject), Subject),
+         Subject = ifelse(Group == 1, paste0("ASD", Subject), Subject))
+
+study2_GS_long <- study2_GS_long %>% 
+ drop_na()
+```
+
+```{r}
+# make long dataset
+study2_SL_long_block <- study2_SL %>% 
+  select(c('Group', 'Subject', 'block2_offline','block3_offline', 'block4_offline','block5_offline', 'block6_offline','block7_offline', 'block8_offline','block9_offline', 'block10_offline',
+                                       'block11_offline', 'block12_offline','block13_offline', 'block14_offline','block15_offline', 'block16_offline', 'block17_offline','block18_offline', 'block19_offline','block20_offline','block2_online','block3_online', 'block4_online','block5_online', 'block6_online','block7_online', 'block8_online','block9_online', 'block10_online',
+                                       'block11_online', 'block12_online','block13_online', 'block14_online','block15_online', 'block16_online', 'block17_online','block18_online', 'block19_online','block20_online'))
+
+blocks <- c('block2','block3', 'block4','block5', 'block6','block7', 'block8','block9', 'block10',
+               'block11', 'block12','block13', 'block14','block15', 'block16', 'block17','block18',
+               'block19','block20')
+
+study2_SL_long_block <- pivot_longer(
+  data = study2_SL_long_block,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Learning_phase"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Learning_phase"
+)
+
+study2_SL_long_block <- pivot_longer(
+  data = study2_SL_long_block,
+  cols = starts_with(blocks),
+  names_to = c("Block"),
+  values_to = "SL_score"
+)
+
+study2_SL_long_block <- study2_SL_long_block %>% 
+  mutate(Block = gsub('block', "", Block))
+
+# create unique id
+study2_SL_long_block <- study2_SL_long_block %>% 
+  mutate(Subject = ifelse(Group == 0, paste0("NTP", Subject), Subject),
+         Subject = ifelse(Group == 1, paste0("ASD", Subject), Subject))
+
+study2_SL_long_block <- study2_SL_long_block %>% 
+ drop_na()
+```
+
+```{r}
+# make long dataset
+study2_GS_long_block <- study2_GS %>% 
+  select(c('Group','Subject', 'block2_offline','block3_offline', 'block4_offline','block5_offline', 'block6_offline','block7_offline', 'block8_offline','block9_offline', 'block10_offline',
+                                       'block11_offline', 'block12_offline','block13_offline', 'block14_offline','block15_offline', 'block16_offline', 'block17_offline','block18_offline', 'block19_offline','block20_offline','block2_online','block3_online', 'block4_online','block5_online', 'block6_online','block7_online', 'block8_online','block9_online', 'block10_online',
+                                       'block11_online', 'block12_online','block13_online', 'block14_online','block15_online', 'block16_online', 'block17_online','block18_online', 'block19_online','block20_online'))
+
+blocks <- c('block2','block3', 'block4','block5', 'block6','block7', 'block8','block9', 'block10',
+               'block11', 'block12','block13', 'block14','block15', 'block16', 'block17','block18',
+               'block19','block20')
+
+study2_GS_long_block <- pivot_longer(
+  data = study2_GS_long_block,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Learning_phase"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Learning_phase"
+)
+
+study2_GS_long_block <- pivot_longer(
+  data = study2_GS_long_block,
+  cols = starts_with(blocks),
+  names_to = c("Block"),
+  values_to = "GS_score"
+)
+
+study2_GS_long_block <- study2_GS_long_block %>% 
+  mutate(Block = gsub('block', "", Block))
+
+# create unique id
+study2_GS_long_block <- study2_GS_long_block %>% 
+  mutate(Subject = ifelse(Group == 0, paste0("NTP", Subject), Subject),
+         Subject = ifelse(Group == 1, paste0("ASD", Subject), Subject))
+
+study2_GS_long_block <- study2_GS_long_block %>% 
+ drop_na()
+```
+
+## Study 3
+
+```{r}
+# make long dataset
+study3_SL_long <- study3_SL %>% 
+  select(c('Group', 'AQ_total', 'Subject', 'offline_SL', 'online_SL'))
+
+learning_phase <- c('offline_SL', 'online_SL')
+
+study3_SL_long <- pivot_longer(
+  data = study3_SL_long,
+  cols = learning_phase,
+  names_to = c(".value", "learning_type"),
+  names_pattern = "(\\w+)_(SL)",
+  values_to = "Learning_phase"
+)
+
+phase <- c('offline', 'online')
+
+study3_SL_long <- pivot_longer(
+  data = study3_SL_long,
+  cols = phase,
+  names_to = c("Learning_phase"),
+  values_to = "SL_score"
+)
+
+# create unique id
+study3_SL_long <- study3_SL_long %>% 
+  mutate(Subject = ifelse(Group == 0, paste0("low_AQ", Subject), Subject),
+         Subject = ifelse(Group == 1, paste0("high_AQ", Subject), Subject))
+
+study3_SL_long <- study3_SL_long %>% 
+ drop_na()
+```
+
+```{r}
+# make long dataset
+study3_GS_long <- study3_GS %>% 
+  select(c('Group', 'AQ_total', 'Subject', 'offline_GS', 'online_GS'))
+
+learning_phase <- c('offline_GS', 'online_GS')
+
+study3_GS_long <- pivot_longer(
+  data = study3_GS_long,
+  cols = learning_phase,
+  names_to = c(".value", "learning_type"),
+  names_pattern = "(\\w+)_(GS)",
+  values_to = "Learning_phase"
+)
+
+phase <- c('offline', 'online')
+
+study3_GS_long <- pivot_longer(
+  data = study3_GS_long,
+  cols = phase,
+  names_to = c("Learning_phase"),
+  values_to = "GS_score"
+)
+
+# create unique id
+study3_GS_long <- study3_GS_long %>% 
+  mutate(Subject = ifelse(Group == 0, paste0("low_AQ", Subject), Subject),
+         Subject = ifelse(Group == 1, paste0("high_AQ", Subject), Subject))
+
+study3_GS_long <- study3_GS_long %>% 
+ drop_na()
+```
+
+```{r}
+# make long dataset
+study3_SL_long_block <- study3_SL %>% 
+  select(c('Group', 'AQ_total', 'Subject', 'block2_offline','block3_offline', 'block4_offline','block5_offline', 'block6_offline','block7_offline', 'block8_offline','block9_offline', 'block10_offline',
+                                       'block11_offline', 'block12_offline','block13_offline', 'block14_offline','block15_offline', 'block16_offline', 'block17_offline','block18_offline', 'block19_offline','block20_offline', 'block21_offline', 'block22_offline','block23_offline', 'block24_offline','block25_offline','block2_online','block3_online', 'block4_online','block5_online', 'block6_online','block7_online', 'block8_online','block9_online', 'block10_online',
+                                       'block11_online', 'block12_online','block13_online', 'block14_online','block15_online', 'block16_online', 'block17_online','block18_online', 'block19_online','block20_online',
+                                       'block21_online', 'block22_online','block23_online', 'block24_online','block25_online'))
+
+blocks <- c('block2','block3', 'block4','block5', 'block6','block7', 'block8','block9', 'block10',
+               'block11', 'block12','block13', 'block14','block15', 'block16', 'block17','block18',
+               'block19','block20', 'block21', 'block22','block23', 'block24','block25')
+
+study3_SL_long_block <- pivot_longer(
+  data = study3_SL_long_block,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Learning_phase"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Learning_phase"
+)
+
+study3_SL_long_block <- pivot_longer(
+  data = study3_SL_long_block,
+  cols = starts_with(blocks),
+  names_to = c("Block"),
+  values_to = "SL_score"
+)
+
+study3_SL_long_block <- study3_SL_long_block %>% 
+  mutate(Block = gsub('block', "", Block))
+
+# create unique id
+study3_SL_long_block <- study3_SL_long_block %>% 
+  mutate(Subject = ifelse(Group == 0, paste0("low_AQ", Subject), Subject),
+         Subject = ifelse(Group == 1, paste0("high_AQ", Subject), Subject))
+
+study3_SL_long_block <- study3_SL_long_block %>% 
+ drop_na()
+```
+
+```{r}
+# make long dataset
+study3_GS_long_block <- study3_GS %>% 
+  select(c('Group', 'AQ_total', 'Subject', 'block2_offline','block3_offline', 'block4_offline','block5_offline', 'block6_offline','block7_offline', 'block8_offline','block9_offline', 'block10_offline',
+                                       'block11_offline', 'block12_offline','block13_offline', 'block14_offline','block15_offline', 'block16_offline', 'block17_offline','block18_offline', 'block19_offline','block20_offline', 'block21_offline', 'block22_offline','block23_offline', 'block24_offline','block25_offline','block2_online','block3_online', 'block4_online','block5_online', 'block6_online','block7_online', 'block8_online','block9_online', 'block10_online',
+                                       'block11_online', 'block12_online','block13_online', 'block14_online','block15_online', 'block16_online', 'block17_online','block18_online', 'block19_online','block20_online',
+                                       'block21_online', 'block22_online','block23_online', 'block24_online','block25_online'))
+
+blocks <- c('block2','block3', 'block4','block5', 'block6','block7', 'block8','block9', 'block10',
+               'block11', 'block12','block13', 'block14','block15', 'block16', 'block17','block18',
+               'block19','block20', 'block21', 'block22','block23', 'block24','block25')
+
+study3_GS_long_block <- pivot_longer(
+  data = study3_GS_long_block,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Learning_phase"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Learning_phase"
+)
+
+study3_GS_long_block <- pivot_longer(
+  data = study3_GS_long_block,
+  cols = starts_with(blocks),
+  names_to = c("Block"),
+  values_to = "GS_score"
+)
+
+study3_GS_long_block <- study3_GS_long_block %>% 
+  mutate(Block = gsub('block', "", Block))
+
+# create unique id
+study3_GS_long_block <- study3_GS_long_block %>% 
+  mutate(Subject = ifelse(Group == 0, paste0("low_AQ", Subject), Subject),
+         Subject = ifelse(Group == 1, paste0("high_AQ", Subject), Subject))
+
+
+study3_GS_long_block <- study3_GS_long_block %>% 
+ drop_na()
+```
+
+# Study 1
+## statistical learning
+### learning phase x group
+
+```{r}
+study1_SL_anova <- anova_test(data = study1_SL_long, wid = "Subject", dv = "SL_score", between = "Group", within = c("Learning_phase"), effect.size = "pes")
+study1_SL_anova
+```
+
+### learning phase
+
+```{r}
+# whole sample offline
+whole_offline <- study1_SL_long %>% 
+  filter(Learning_phase == "offline")
+mean(whole_offline$SL_score)
+sd(whole_offline$SL_score)
+
+# normality test
+shapiro_test(whole_offline$SL_score)
+
+# Wilcoxon test
+wilcox.test(whole_offline$SL_score)
+wilcox_effsize(whole_offline, SL_score ~ 1)
+```
+
+```{r}
+# whole sample online
+whole_online <- study1_SL_long %>% 
+  filter(Learning_phase == "online")
+mean(whole_online$SL_score)
+sd(whole_online$SL_score)
+
+# normality test
+shapiro_test(whole_online$SL_score)
+
+# Wilcoxon test
+wilcox.test(whole_online$SL_score)
+wilcox_effsize(whole_online, SL_score ~ 1)
+```
+
+```{r}
+# NTP group offline
+NTP_offline <- study1_SL_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 0)
+mean(NTP_offline$SL_score)
+sd(NTP_offline$SL_score)
+
+# normality test
+shapiro_test(NTP_offline$SL_score)
+
+# Wilcoxon test
+wilcox.test(NTP_offline$SL_score)
+wilcox_effsize(NTP_offline, SL_score ~ 1)
+```
+
+```{r}
+# NTP group online
+NTP_online <- study1_SL_long %>% 
+  filter(Learning_phase == "online",
+         Group == 0)
+mean(NTP_online$SL_score)
+sd(NTP_online$SL_score)
+
+# normality test
+shapiro_test(NTP_online$SL_score)
+
+# Wilcoxon test
+wilcox.test(NTP_online$SL_score)
+wilcox_effsize(NTP_online, SL_score ~ 1)
+```
+
+```{r}
+# ASD group offline
+ASD_offline <- study1_SL_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 1)
+mean(ASD_offline$SL_score)
+sd(ASD_offline$SL_score)
+
+# normality test
+shapiro_test(ASD_offline$SL_score)
+
+# t-test
+t.test(ASD_offline$SL_score)
+cohens_d(ASD_offline, SL_score ~ 1)
+```
+
+```{r}
+# ASD group online
+ASD_online <- study1_SL_long %>% 
+  filter(Learning_phase == "online",
+         Group == 1)
+mean(ASD_online$SL_score)
+sd(ASD_online$SL_score)
+
+# normality test
+shapiro_test(ASD_online$SL_score)
+
+# t-test
+t.test(ASD_online$SL_score)
+cohens_d(ASD_online, SL_score ~ 1)
+```
+
+### learning phase x block x group
+
+```{r}
+study1_block_SL_anova <- anova_test(data = study1_SL_long_block, wid = "Subject", dv = "SL_score", between = "Group", within = c("Learning_phase", "Block"), effect.size = "pes")
+study1_block_SL_anova
+```
+
+```{r}
+# greenhouse-geisser correction
+get_anova_table(study1_block_SL_anova, correction = c("GG"))
+```
+
+### chi-square test
+
+```{r}
+study1_SL_offline_table = table(study1_SL$Group, study1_SL$is_learn_offline)
+study1_SL_offline_table
+chisq.test(study1_SL_offline_table, correct = FALSE)
+```
+
+```{r}
+study1_SL_online_table = table(study1_SL$Group, study1_SL$is_learn_online)
+study1_SL_online_table
+chisq.test(study1_SL_online_table, correct = FALSE)
+```
+
+## general skill learning
+### learning phase x group
+
+```{r}
+study1_GS_anova <- anova_test(data = study1_GS_long, wid = "Subject", dv = "GS_score", between = "Group", within = c("Learning_phase"), effect.size = "pes")
+study1_GS_anova
+```
+
+### learning phase
+
+```{r}
+# whole sample offline
+whole_offline <- study1_GS_long %>% 
+  filter(Learning_phase == "offline")
+mean(whole_offline$GS_score)
+sd(whole_offline$GS_score)
+
+# normality test
+shapiro_test(whole_offline$GS_score)
+
+# Wilcoxon test
+wilcox.test(whole_offline$GS_score)
+wilcox_effsize(whole_offline, GS_score ~ 1)
+```
+
+```{r}
+# whole sample online
+whole_online <- study1_GS_long %>% 
+  filter(Learning_phase == "online")
+mean(whole_online$GS_score)
+sd(whole_online$GS_score)
+
+# normality test
+shapiro_test(whole_online$GS_score)
+
+# t-test
+t.test(whole_online$GS_score)
+cohens_d(whole_online, GS_score ~ 1)
+```
+
+```{r}
+# NTP group offline
+NTP_offline <- study1_GS_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 0)
+mean(NTP_offline$GS_score)
+sd(NTP_offline$GS_score)
+
+# normality test
+shapiro_test(NTP_offline$GS_score)
+
+# Wilcoxon test
+wilcox.test(NTP_offline$GS_score)
+wilcox_effsize(NTP_offline, GS_score ~ 1)
+```
+
+```{r}
+# NTP group online
+NTP_online <- study1_GS_long %>% 
+  filter(Learning_phase == "online",
+         Group == 0)
+mean(NTP_online$GS_score)
+sd(NTP_online$GS_score)
+
+# normality test
+shapiro_test(NTP_online$GS_score)
+
+# Wilcoxon test
+wilcox.test(NTP_online$GS_score)
+wilcox_effsize(NTP_online, GS_score ~ 1)
+```
+
+```{r}
+# ASD group offline
+ASD_offline <- study1_GS_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 1)
+mean(ASD_offline$GS_score)
+sd(ASD_offline$GS_score)
+
+# normality test
+shapiro_test(ASD_offline$GS_score)
+
+# t-test
+t.test(ASD_offline$GS_score)
+cohens_d(ASD_offline, GS_score ~ 1)
+```
+
+```{r}
+# ASD group online
+ASD_online <- study1_GS_long %>% 
+  filter(Learning_phase == "online",
+         Group == 1)
+mean(ASD_online$GS_score)
+sd(ASD_online$GS_score)
+
+# normality test
+shapiro_test(ASD_online$GS_score)
+
+# t-test
+t.test(ASD_online$GS_score)
+cohens_d(ASD_online, GS_score ~ 1)
+```
+
+### learning phase x block x group
+
+```{r}
+study1_block_GS_anova <- anova_test(data = study1_GS_long_block, wid = "Subject", dv = "GS_score", between = "Group", within = c("Learning_phase", "Block"), effect.size = "pes")
+study1_block_GS_anova
+```
+
+```{r}
+# greenhouse-geisser correction
+get_anova_table(study1_block_GS_anova, correction = c("GG"))
+```
+
+### chi-square test
+
+```{r}
+study1_GS_offline_table = table(study1_GS$Group, study1_GS$is_learn_offline)
+study1_GS_offline_table
+chisq.test(study1_GS_offline_table, correct = FALSE)
+```
+
+```{r}
+study1_GS_online_table = table(study1_GS$Group, study1_GS$is_learn_online)
+study1_GS_online_table
+chisq.test(study1_GS_online_table, correct = FALSE)
+```
+
+# Study 2
+## statistical learning
+### learning phase x group
+
+```{r}
+study2_SL_anova <- anova_test(data = study2_SL_long, wid = "Subject", dv = "SL_score", between = "Group", within = c("Learning_phase"), effect.size = "pes")
+study2_SL_anova
+```
+
+### learning phase
+
+```{r}
+# whole sample offline
+whole_offline <- study2_SL_long %>% 
+  filter(Learning_phase == "offline")
+mean(whole_offline$SL_score)
+sd(whole_offline$SL_score)
+
+# normality test
+shapiro_test(whole_offline$SL_score)
+
+# t-test
+t.test(whole_offline$SL_score)
+cohens_d(whole_offline, SL_score ~ 1)
+```
+
+```{r}
+# whole sample online
+whole_online <- study2_SL_long %>% 
+  filter(Learning_phase == "online")
+mean(whole_online$SL_score)
+sd(whole_online$SL_score)
+
+# normality test
+shapiro_test(whole_online$SL_score)
+
+# t-test
+t.test(whole_online$SL_score)
+cohens_d(whole_online, SL_score ~ 1)
+```
+
+```{r}
+# NTP group offline
+NTP_offline <- study2_SL_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 0)
+mean(NTP_offline$SL_score)
+sd(NTP_offline$SL_score)
+
+# normality test
+shapiro_test(NTP_offline$SL_score)
+
+# t-test
+t.test(NTP_offline$SL_score)
+cohens_d(NTP_offline, SL_score ~ 1)
+```
+
+```{r}
+# NTP group online
+NTP_online <- study2_SL_long %>% 
+  filter(Learning_phase == "online",
+         Group == 0)
+mean(NTP_online$SL_score)
+sd(NTP_online$SL_score)
+
+# normality test
+shapiro_test(NTP_online$SL_score)
+
+# t-test
+t.test(NTP_online$SL_score)
+cohens_d(NTP_online, SL_score ~ 1)
+```
+
+```{r}
+# ASD group offline
+ASD_offline <- study2_SL_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 1)
+mean(ASD_offline$SL_score)
+sd(ASD_offline$SL_score)
+
+# normality test
+shapiro_test(ASD_offline$SL_score)
+
+# t-test
+t.test(ASD_offline$SL_score)
+cohens_d(ASD_offline, SL_score ~ 1)
+```
+
+```{r}
+# ASD group online
+ASD_online <- study2_SL_long %>% 
+  filter(Learning_phase == "online",
+         Group == 1)
+mean(ASD_online$SL_score)
+sd(ASD_online$SL_score)
+
+# normality test
+shapiro_test(ASD_online$SL_score)
+
+# t-test
+t.test(ASD_online$SL_score)
+cohens_d(ASD_online, SL_score ~ 1)
+```
+
+### learning phase x block x group
+
+```{r}
+study2_block_SL_anova <- anova_test(data = study2_SL_long_block, wid = "Subject", dv = "SL_score", between = "Group", within = c("Learning_phase", "Block"), effect.size = "pes")
+study2_block_SL_anova
+```
+
+```{r}
+# greenhouse-geisser correction
+get_anova_table(study2_block_SL_anova, correction = c("GG"))
+```
+
+### chi-square test
+
+```{r}
+study2_SL_offline_table = table(study2_SL$Group, study2_SL$is_learn_offline)
+study2_SL_offline_table
+chisq.test(study2_SL_offline_table, correct = FALSE)
+```
+
+```{r}
+study2_SL_online_table = table(study2_SL$Group, study2_SL$is_learn_online)
+study2_SL_online_table
+chisq.test(study2_SL_online_table, correct = FALSE)
+```
+
+## general skill learning
+### learning phase x group
+
+```{r}
+study2_GS_anova <- anova_test(data = study2_GS_long, wid = "Subject", dv = "GS_score", between = "Group", within = c("Learning_phase"), effect.size = "pes")
+study2_GS_anova
+```
+
+### learning phase
+
+```{r}
+# whole sample offline
+whole_offline <- study2_GS_long %>% 
+  filter(Learning_phase == "offline")
+mean(whole_offline$GS_score)
+sd(whole_offline$GS_score)
+
+# normality test
+shapiro_test(whole_offline$GS_score)
+
+# t-test
+t.test(whole_offline$GS_score)
+cohens_d(whole_offline, GS_score ~ 1)
+```
+
+```{r}
+# whole sample online
+whole_online <- study2_GS_long %>% 
+  filter(Learning_phase == "online")
+mean(whole_online$GS_score)
+sd(whole_online$GS_score)
+
+# normality test
+shapiro_test(whole_online$GS_score)
+
+# t-test
+t.test(whole_online$GS_score)
+cohens_d(whole_online, GS_score ~ 1)
+```
+
+```{r}
+# NTP group offline
+NTP_offline <- study2_GS_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 0)
+mean(NTP_offline$GS_score)
+sd(NTP_offline$GS_score)
+
+# normality test
+shapiro_test(NTP_offline$GS_score)
+
+# t-test
+t.test(NTP_offline$GS_score)
+cohens_d(NTP_offline, GS_score ~ 1)
+```
+
+```{r}
+# NTP group online
+NTP_online <- study2_GS_long %>% 
+  filter(Learning_phase == "online",
+         Group == 0)
+mean(NTP_online$GS_score)
+sd(NTP_online$GS_score)
+
+# normality test
+shapiro_test(NTP_online$GS_score)
+
+# Wilcoxon test
+wilcox.test(NTP_online$GS_score)
+wilcox_effsize(NTP_online, GS_score ~ 1)
+```
+
+```{r}
+# ASD group offline
+ASD_offline <- study2_GS_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 1)
+mean(ASD_offline$GS_score)
+sd(ASD_offline$GS_score)
+
+# normality test
+shapiro_test(ASD_offline$GS_score)
+
+# t-test
+t.test(ASD_offline$GS_score)
+cohens_d(ASD_offline, GS_score ~ 1)
+```
+
+```{r}
+# ASD group online
+ASD_online <- study2_GS_long %>% 
+  filter(Learning_phase == "online",
+         Group == 1)
+mean(ASD_online$GS_score)
+sd(ASD_online$GS_score)
+
+# normality test
+shapiro_test(ASD_online$GS_score)
+
+# t-test
+t.test(ASD_online$GS_score)
+cohens_d(ASD_online, GS_score ~ 1)
+```
+
+### learning phase x block x group
+
+```{r}
+study2_block_GS_anova <- anova_test(data = study2_GS_long_block, wid = "Subject", dv = "GS_score", between = "Group", within = c("Learning_phase", "Block"), effect.size = "pes")
+study2_block_GS_anova
+```
+
+```{r}
+# greenhouse-geisser correction
+get_anova_table(study2_block_GS_anova, correction = c("GG"))
+```
+
+### chi-square test
+
+```{r}
+study2_GS_offline_table = table(study2_GS$Group, study2_GS$is_learn_offline)
+study2_GS_offline_table
+chisq.test(study2_GS_offline_table, correct = FALSE)
+```
+
+```{r}
+study2_GS_online_table = table(study2_GS$Group, study2_GS$is_learn_online)
+study2_GS_online_table
+chisq.test(study2_GS_online_table, correct = FALSE)
+```
+
+# Study 3
+## statistical learning
+### learning phase x group
+
+```{r}
+study3_SL_anova <- anova_test(data = study3_SL_long, wid = "Subject", dv = "SL_score", between = "Group", within = c("Learning_phase"), effect.size = "pes")
+study3_SL_anova
+```
+
+### learning phase
+
+```{r}
+# whole sample offline
+whole_offline <- study3_SL_long %>% 
+  filter(Learning_phase == "offline")
+mean(whole_offline$SL_score)
+sd(whole_offline$SL_score)
+
+# normality test
+shapiro_test(whole_offline$SL_score)
+
+# t-test
+t.test(whole_offline$SL_score)
+cohens_d(whole_offline, SL_score ~ 1)
+```
+
+```{r}
+# whole sample online
+whole_online <- study3_SL_long %>% 
+  filter(Learning_phase == "online")
+mean(whole_online$SL_score)
+sd(whole_online$SL_score)
+
+# normality test
+shapiro_test(whole_online$SL_score)
+
+# Wilcoxon test
+wilcox.test(whole_online$SL_score)
+wilcox_effsize(whole_online, SL_score ~ 1)
+```
+
+```{r}
+# low AQ group offline
+lowAQ_offline <- study3_SL_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 0)
+mean(lowAQ_offline$SL_score)
+sd(lowAQ_offline$SL_score)
+
+# normality test
+shapiro_test(lowAQ_offline$SL_score)
+
+# t-test
+t.test(lowAQ_offline$SL_score)
+cohens_d(lowAQ_offline, SL_score ~ 1)
+```
+
+```{r}
+# low AQ group online
+lowAQ_online <- study3_SL_long %>% 
+  filter(Learning_phase == "online",
+         Group == 0)
+mean(lowAQ_online$SL_score)
+sd(lowAQ_online$SL_score)
+
+# normality test
+shapiro_test(lowAQ_online$SL_score)
+
+# t-test
+t.test(lowAQ_online$SL_score)
+cohens_d(lowAQ_online, SL_score ~ 1)
+```
+
+```{r}
+# high AQ group offline
+highAQ_offline <- study3_SL_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 1)
+mean(highAQ_offline$SL_score)
+sd(highAQ_offline$SL_score)
+
+# normality test
+shapiro_test(highAQ_offline$SL_score)
+
+# t-test
+t.test(highAQ_offline$SL_score)
+cohens_d(highAQ_offline, SL_score ~ 1)
+```
+
+```{r}
+# high AQ group online
+highAQ_online <- study3_SL_long %>% 
+  filter(Learning_phase == "online",
+         Group == 1)
+mean(highAQ_online$SL_score)
+sd(highAQ_online$SL_score)
+
+# normality test
+shapiro_test(highAQ_online$SL_score)
+
+# Wilcoxon test
+wilcox.test(highAQ_online$SL_score)
+wilcox_effsize(highAQ_online, SL_score ~ 1)
+```
+
+### learning phase x block x group
+
+```{r}
+study3_block_SL_anova <- anova_test(data = study3_SL_long_block, wid = "Subject", dv = "SL_score", between = "Group", within = c("Learning_phase", "Block"), effect.size = "pes")
+study3_block_SL_anova
+```
+
+```{r}
+# greenhouse-geisser correction
+get_anova_table(study3_block_SL_anova, correction = c("GG"))
+```
+
+### chi-square test
+
+```{r}
+study3_SL_offline_table = table(study3_SL$Group, study3_SL$is_learn_offline)
+study3_SL_offline_table
+chisq.test(study3_SL_offline_table, correct = FALSE)
+```
+
+```{r}
+study3_SL_online_table = table(study3_SL$Group, study3_SL$is_learn_online)
+study3_SL_online_table
+chisq.test(study3_SL_online_table, correct = FALSE)
+```
+
+## general skill learning
+### learning phase x group
+
+```{r}
+study3_GS_anova <- anova_test(data = study3_GS_long, wid = "Subject", dv = "GS_score", between = "Group", within = c("Learning_phase"), effect.size = "pes")
+study3_GS_anova
+```
+
+### learning phase
+
+```{r}
+# whole sample offline
+whole_offline <- study3_GS_long %>% 
+  filter(Learning_phase == "offline")
+mean(whole_offline$GS_score)
+sd(whole_offline$GS_score)
+
+# normality test
+shapiro_test(whole_offline$GS_score)
+
+# t-test
+t.test(whole_offline$GS_score)
+cohens_d(whole_offline, GS_score ~ 1)
+```
+
+```{r}
+# whole sample online
+whole_online <- study3_GS_long %>% 
+  filter(Learning_phase == "online")
+mean(whole_online$GS_score)
+sd(whole_online$GS_score)
+
+# normality test
+shapiro_test(whole_online$GS_score)
+
+# Wilcoxon test
+t.test(whole_online$GS_score)
+cohens_d(whole_online, GS_score ~ 1)
+```
+
+```{r}
+# low AQ group offline
+lowAQ_offline <- study3_GS_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 0)
+mean(lowAQ_offline$GS_score)
+sd(lowAQ_offline$GS_score)
+
+# normality test
+shapiro_test(lowAQ_offline$GS_score)
+
+# t-test
+t.test(lowAQ_offline$GS_score)
+cohens_d(lowAQ_offline, GS_score ~ 1)
+```
+
+```{r}
+# low AQ group online
+lowAQ_online <- study3_GS_long %>% 
+  filter(Learning_phase == "online",
+         Group == 0)
+mean(lowAQ_online$GS_score)
+sd(lowAQ_online$GS_score)
+
+# normality test
+shapiro_test(lowAQ_online$GS_score)
+
+# t-test
+t.test(lowAQ_online$GS_score)
+cohens_d(lowAQ_online, GS_score ~ 1)
+```
+
+```{r}
+# high AQ group offline
+highAQ_offline <- study3_GS_long %>% 
+  filter(Learning_phase == "offline",
+         Group == 1)
+mean(highAQ_offline$GS_score)
+sd(highAQ_offline$GS_score)
+
+# normality test
+shapiro_test(highAQ_offline$GS_score)
+
+# t-test
+t.test(highAQ_offline$GS_score)
+cohens_d(highAQ_offline, GS_score ~ 1)
+```
+
+```{r}
+# high AQ group online
+highAQ_online <- study3_GS_long %>% 
+  filter(Learning_phase == "online",
+         Group == 1)
+mean(highAQ_online$GS_score)
+sd(highAQ_online$GS_score)
+
+# normality test
+shapiro_test(highAQ_online$GS_score)
+
+# Wilcoxon test
+t.test(highAQ_online$GS_score)
+cohens_d(highAQ_online, GS_score ~ 1)
+```
+
+### learning phase x block x group
+
+```{r}
+study3_block_GS_anova <- anova_test(data = study3_GS_long_block, wid = "Subject", dv = "GS_score", between = "Group", within = c("Learning_phase", "Block"), effect.size = "pes")
+study3_block_GS_anova
+```
+
+```{r}
+# greenhouse-geisser correction
+get_anova_table(study3_block_GS_anova, correction = c("GG"))
+```
+
+### chi-square test
+
+```{r}
+study3_GS_offline_table = table(study3_GS$Group, study3_GS$is_learn_offline)
+study3_GS_offline_table
+chisq.test(study3_GS_offline_table, correct = FALSE)
+```
+
+```{r}
+study3_GS_online_table = table(study3_GS$Group, study3_GS$is_learn_online)
+study3_GS_online_table
+chisq.test(study3_GS_online_table, correct = FALSE)
+```

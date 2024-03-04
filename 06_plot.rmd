@@ -1,0 +1,973 @@
+---
+tiSLe: "Plot"
+author: "Cintia Anna Nagy"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# import packages
+
+```{r message = FALSE}
+library(plyr)
+library(rmarkdown)
+library(caTools)
+library(bitops)
+library(tidyr)
+library(ggpp)
+library(jtools)
+library(plotrix)
+library(cowplot)
+library(readr)
+library(dplyr)
+library(lavaan)
+library(Hmisc)
+library(ggplot2)
+```
+
+# import data
+
+```{r, message = FALSE}
+study1_SL <- read_csv("processed_data/study_1/data_study_1_SL_offline_online.csv")
+study1_GS <- read_csv("processed_data/study_1/data_study_1_GS_offline_online.csv")
+study1_stat_learn <- read_csv("processed_data/study_1/data_study_1_statistical_learning.csv")
+study1_genskill_learn  <- read_csv("processed_data/study_1/data_study_1_general_skill_learning.csv")
+study2_SL <- read_csv("processed_data/study_2/data_study_2_SL_offline_online.csv")
+study2_GS <- read_csv("processed_data/study_2/data_study_2_GS_offline_online.csv")
+study2_stat_learn <- read_csv("processed_data/study_2/data_study_2_statistical_learning.csv")
+study2_genskill_learn  <- read_csv("processed_data/study_2/data_study_2_general_skill_learning.csv")
+study3_SL <- read_csv("processed_data/study_3/data_study_3_SL_offline_online.csv")
+study3_GS <- read_csv("processed_data/study_3/data_study_3_GS_offline_online.csv")
+study3_stat_learn <- read_csv("processed_data/study_3/data_study_3_statistical_learning.csv")
+study3_genskill_learn  <- read_csv("processed_data/study_3/data_study_3_general_skill_learning.csv")
+```
+
+# preprocess data
+## Study 1
+
+```{r}
+study1_SL_long <- study1_SL %>% 
+  select(c('Group', 'Subject', 'offline_SL', 'online_SL'))
+
+learning_phase <- c('offline_SL', 'online_SL')
+
+study1_SL_long <- pivot_longer(
+  data = study1_SL_long,
+  cols = learning_phase,
+  names_to = c(".value", "learning_type"),
+  names_pattern = "(\\w+)_(SL)",
+  values_to = "Learning_phase"
+)
+
+learning_phase2 <- c('offline', 'online')
+
+study1_SL_long <- pivot_longer(
+  data = study1_SL_long,
+  cols = learning_phase2,
+  names_to = c("Learning_phase"),
+  values_to = "SL_score"
+)
+
+study1_SL_long$Learning_phase[study1_SL_long$Learning_phase == "offline"] <- 1
+study1_SL_long$Learning_phase[study1_SL_long$Learning_phase == "online"] <- 2
+study1_SL_long$Group[study1_SL_long$Group == 0] <- "NTP"
+study1_SL_long$Group[study1_SL_long$Group == 1] <- "ASD"
+```
+
+```{r}
+study1_GS_long <- study1_GS %>% 
+  select(c('Group', 'Subject', 'offline_GS', 'online_GS'))
+
+learning_phase <- c('offline_GS', 'online_GS')
+
+study1_GS_long <- pivot_longer(
+  data = study1_GS_long,
+  cols = learning_phase,
+  names_to = c(".value", "learning_type"),
+  names_pattern = "(\\w+)_(GS)",
+  values_to = "Learning_phase"
+)
+
+learning_phase2 <- c('offline', 'online')
+
+study1_GS_long <- pivot_longer(
+  data = study1_GS_long,
+  cols = learning_phase2,
+  names_to = c("Learning_phase"),
+  values_to = "GS_score"
+)
+
+study1_GS_long$Learning_phase[study1_GS_long$Learning_phase == "offline"] <- 1
+study1_GS_long$Learning_phase[study1_GS_long$Learning_phase == "online"] <- 2
+study1_GS_long$Group[study1_GS_long$Group == 0] <- "NTP"
+study1_GS_long$Group[study1_GS_long$Group == 1] <- "ASD"
+```
+
+```{r}
+study1_SL_long_block <- study1_SL %>% 
+  select(c('Group', 'Subject', 'block2_offline','block3_offline', 'block4_offline','block5_offline', 'block6_offline','block7_offline', 'block8_offline','block9_offline', 'block10_offline',
+                                       'block11_offline', 'block12_offline','block13_offline', 'block14_offline','block15_offline', 'block16_offline', 'block17_offline','block18_offline', 'block19_offline','block20_offline', 'block2_online','block3_online', 'block4_online','block5_online', 'block6_online','block7_online', 'block8_online','block9_online', 'block10_online',
+                                       'block11_online', 'block12_online','block13_online', 'block14_online','block15_online', 'block16_online', 'block17_online','block18_online', 'block19_online','block20_online'))
+
+blocks <- c('block2','block3', 'block4','block5', 'block6','block7', 'block8','block9', 'block10',
+               'block11', 'block12','block13', 'block14','block15', 'block16', 'block17','block18',
+               'block19','block20')
+
+study1_SL_long_block <- pivot_longer(
+  data = study1_SL_long_block,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Learning_phase"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Learning_phase"
+)
+
+study1_SL_long_block <- pivot_longer(
+  data = study1_SL_long_block,
+  cols = starts_with(blocks),
+  names_to = c("Block"),
+  values_to = "SL_score"
+)
+
+study1_SL_long_block <- study1_SL_long_block %>% 
+  mutate(Block = gsub('block', "", Block))
+
+study1_SL_long_block <- study1_SL_long_block %>%
+  group_by(Block, Learning_phase, Group) %>% 
+  summarise(rt = mean(SL_score, na.rm = T), se = std.error(SL_score, na.rm = T)) %>% 
+  ungroup()
+```
+
+```{r}
+study1_GS_long_block <- study1_GS %>% 
+  select(c('Group', 'Subject', 'block2_offline','block3_offline', 'block4_offline','block5_offline', 'block6_offline','block7_offline', 'block8_offline','block9_offline', 'block10_offline',
+                                       'block11_offline', 'block12_offline','block13_offline', 'block14_offline','block15_offline', 'block16_offline', 'block17_offline','block18_offline', 'block19_offline','block20_offline', 'block2_online','block3_online', 'block4_online','block5_online', 'block6_online','block7_online', 'block8_online','block9_online', 'block10_online',
+                                       'block11_online', 'block12_online','block13_online', 'block14_online','block15_online', 'block16_online', 'block17_online','block18_online', 'block19_online','block20_online'))
+
+blocks <- c('block2','block3', 'block4','block5', 'block6','block7', 'block8','block9', 'block10',
+               'block11', 'block12','block13', 'block14','block15', 'block16', 'block17','block18',
+               'block19','block20')
+
+study1_GS_long_block <- pivot_longer(
+  data = study1_GS_long_block,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Learning_phase"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Learning_phase"
+)
+
+study1_GS_long_block <- pivot_longer(
+  data = study1_GS_long_block,
+  cols = starts_with(blocks),
+  names_to = c("Block"),
+  values_to = "GS_score"
+)
+
+study1_GS_long_block <- study1_GS_long_block %>% 
+  mutate(Block = gsub('block', "", Block))
+
+study1_GS_long_block <- study1_GS_long_block %>%
+  group_by(Block, Learning_phase, Group) %>% 
+  summarise(rt = mean(GS_score, na.rm = T), se = std.error(GS_score, na.rm = T)) %>% 
+  ungroup()
+```
+
+```{r}
+study1_stat_learn_long <- study1_stat_learn %>% 
+  select(c('Group', 'Subject', 'e1_H','e2_H','e3_H','e4_H', 'e1_L','e2_L','e3_L','e4_L'))
+
+blocks <- c('e1','e2','e3','e4')
+
+study1_stat_learn_long <- pivot_longer(
+  data = study1_stat_learn_long,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Triplet"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Triplet"
+)
+
+study1_stat_learn_long <- pivot_longer(
+  data = study1_stat_learn_long,
+  cols = starts_with(blocks),
+  names_to = c("Blocks"),
+  values_to = "stat_learn"
+)
+
+study1_stat_learn_long <- study1_stat_learn_long %>% 
+  mutate(Block = gsub('e', "", Blocks))
+
+study1_stat_learn_long[study1_stat_learn_long == "H"] <- "High"
+study1_stat_learn_long[study1_stat_learn_long == "L"] <- "Low"
+
+study1_stat_learn_long <- study1_stat_learn_long %>%
+  group_by(Block, Triplet, Group) %>% 
+  summarise(rt = mean(stat_learn), se = std.error(stat_learn, na.rm = T)) %>% 
+  ungroup()
+```
+
+```{r}
+study1_genskill_learn_long <- study1_genskill_learn %>% 
+  select(c('Group', 'Subject', 'e1','e2','e3','e4'))
+
+blocks <- c('e1','e2','e3','e4')
+
+study1_genskill_learn_long <- pivot_longer(
+  data = study1_genskill_learn_long,
+  cols = starts_with(blocks),
+  names_to = c("Blocks"),
+  values_to = "genskill_learn"
+)
+
+study1_genskill_learn_long <- study1_genskill_learn_long %>% 
+  mutate(Block = gsub('e', "", Blocks))
+
+study1_genskill_learn_long <- study1_genskill_learn_long %>%
+  group_by(Block, Group) %>% 
+  summarise(rt = mean(genskill_learn), se = std.error(genskill_learn, na.rm = T)) %>% 
+  ungroup()
+```
+
+## Study 2
+
+```{r}
+study2_SL_long <- study2_SL %>% 
+  select(c('Group', 'Subject', 'offline_SL', 'online_SL'))
+
+learning_phase <- c('offline_SL', 'online_SL')
+
+study2_SL_long <- pivot_longer(
+  data = study2_SL_long,
+  cols = learning_phase,
+  names_to = c(".value", "learning_type"),
+  names_pattern = "(\\w+)_(SL)",
+  values_to = "Learning_phase"
+)
+
+learning_phase2 <- c('offline', 'online')
+
+study2_SL_long <- pivot_longer(
+  data = study2_SL_long,
+  cols = learning_phase2,
+  names_to = c("Learning_phase"),
+  values_to = "SL_score"
+)
+
+study2_SL_long$Learning_phase[study2_SL_long$Learning_phase == "offline"] <- 1
+study2_SL_long$Learning_phase[study2_SL_long$Learning_phase == "online"] <- 2
+study2_SL_long$Group[study2_SL_long$Group == 0] <- "NTP"
+study2_SL_long$Group[study2_SL_long$Group == 1] <- "ASD"
+```
+
+```{r}
+study2_GS_long <- study2_GS %>% 
+  select(c('Group', 'Subject', 'offline_GS', 'online_GS'))
+
+learning_phase <- c('offline_GS', 'online_GS')
+
+study2_GS_long <- pivot_longer(
+  data = study2_GS_long,
+  cols = learning_phase,
+  names_to = c(".value", "learning_type"),
+  names_pattern = "(\\w+)_(GS)",
+  values_to = "Learning_phase"
+)
+
+learning_phase2 <- c('offline', 'online')
+
+study2_GS_long <- pivot_longer(
+  data = study2_GS_long,
+  cols = learning_phase2,
+  names_to = c("Learning_phase"),
+  values_to = "GS_score"
+)
+
+study2_GS_long$Learning_phase[study2_GS_long$Learning_phase == "offline"] <- 1
+study2_GS_long$Learning_phase[study2_GS_long$Learning_phase == "online"] <- 2
+study2_GS_long$Group[study2_GS_long$Group == 0] <- "NTP"
+study2_GS_long$Group[study2_GS_long$Group == 1] <- "ASD"
+```
+
+```{r}
+study2_SL_long_block <- study2_SL %>% 
+  select(c('Group', 'Subject', 'block2_offline','block3_offline', 'block4_offline','block5_offline', 'block6_offline','block7_offline', 'block8_offline','block9_offline', 'block10_offline',
+                                       'block11_offline', 'block12_offline','block13_offline', 'block14_offline','block15_offline', 'block16_offline', 'block17_offline','block18_offline', 'block19_offline','block20_offline', 'block2_online','block3_online', 'block4_online','block5_online', 'block6_online','block7_online', 'block8_online','block9_online', 'block10_online',
+                                       'block11_online', 'block12_online','block13_online', 'block14_online','block15_online', 'block16_online', 'block17_online','block18_online', 'block19_online','block20_online'))
+
+blocks <- c('block2','block3', 'block4','block5', 'block6','block7', 'block8','block9', 'block10',
+               'block11', 'block12','block13', 'block14','block15', 'block16', 'block17','block18',
+               'block19','block20')
+
+study2_SL_long_block <- pivot_longer(
+  data = study2_SL_long_block,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Learning_phase"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Learning_phase"
+)
+
+study2_SL_long_block <- pivot_longer(
+  data = study2_SL_long_block,
+  cols = starts_with(blocks),
+  names_to = c("Block"),
+  values_to = "SL_score"
+)
+
+study2_SL_long_block <- study2_SL_long_block %>% 
+  mutate(Block = gsub('block', "", Block))
+
+study2_SL_long_block <- study2_SL_long_block %>%
+  group_by(Block, Learning_phase, Group) %>% 
+  summarise(rt = mean(SL_score, na.rm = T), se = std.error(SL_score, na.rm = T)) %>% 
+  ungroup()
+```
+
+```{r}
+study2_GS_long_block <- study2_GS %>% 
+  select(c('Group', 'Subject', 'block2_offline','block3_offline', 'block4_offline','block5_offline', 'block6_offline','block7_offline', 'block8_offline','block9_offline', 'block10_offline',
+                                       'block11_offline', 'block12_offline','block13_offline', 'block14_offline','block15_offline', 'block16_offline', 'block17_offline','block18_offline', 'block19_offline','block20_offline', 'block2_online','block3_online', 'block4_online','block5_online', 'block6_online','block7_online', 'block8_online','block9_online', 'block10_online',
+                                       'block11_online', 'block12_online','block13_online', 'block14_online','block15_online', 'block16_online', 'block17_online','block18_online', 'block19_online','block20_online'))
+
+blocks <- c('block2','block3', 'block4','block5', 'block6','block7', 'block8','block9', 'block10',
+               'block11', 'block12','block13', 'block14','block15', 'block16', 'block17','block18',
+               'block19','block20')
+
+study2_GS_long_block <- pivot_longer(
+  data = study2_GS_long_block,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Learning_phase"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Learning_phase"
+)
+
+study2_GS_long_block <- pivot_longer(
+  data = study2_GS_long_block,
+  cols = starts_with(blocks),
+  names_to = c("Block"),
+  values_to = "GS_score"
+)
+
+study2_GS_long_block <- study2_GS_long_block %>% 
+  mutate(Block = gsub('block', "", Block))
+
+study2_GS_long_block <- study2_GS_long_block %>%
+  group_by(Block, Learning_phase, Group) %>% 
+  summarise(rt = mean(GS_score, na.rm = T), se = std.error(GS_score, na.rm = T)) %>% 
+  ungroup()
+```
+
+```{r}
+study2_stat_learn_long <- study2_stat_learn %>% 
+  select(c('Group', 'Subject', 'e1_H','e2_H','e3_H','e4_H', 'e1_L','e2_L','e3_L','e4_L'))
+
+blocks <- c('e1','e2','e3','e4')
+
+study2_stat_learn_long <- pivot_longer(
+  data = study2_stat_learn_long,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Triplet"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Triplet"
+)
+
+study2_stat_learn_long <- pivot_longer(
+  data = study2_stat_learn_long,
+  cols = starts_with(blocks),
+  names_to = c("Blocks"),
+  values_to = "stat_learn"
+)
+
+study2_stat_learn_long <- study2_stat_learn_long %>% 
+  mutate(Block = gsub('e', "", Blocks))
+
+study2_stat_learn_long[study2_stat_learn_long == "H"] <- "High"
+study2_stat_learn_long[study2_stat_learn_long == "L"] <- "Low"
+
+study2_stat_learn_long <- study2_stat_learn_long %>%
+  group_by(Block, Triplet, Group) %>% 
+  summarise(rt = mean(stat_learn), se = std.error(stat_learn, na.rm = T)) %>% 
+  ungroup()
+```
+
+```{r}
+study2_genskill_learn_long <- study2_genskill_learn %>% 
+  select(c('Group', 'Subject', 'e1','e2','e3','e4'))
+
+blocks <- c('e1','e2','e3','e4')
+
+study2_genskill_learn_long <- pivot_longer(
+  data = study2_genskill_learn_long,
+  cols = starts_with(blocks),
+  names_to = c("Blocks"),
+  values_to = "genskill_learn"
+)
+
+study2_genskill_learn_long <- study2_genskill_learn_long %>% 
+  mutate(Block = gsub('e', "", Blocks))
+
+study2_genskill_learn_long <- study2_genskill_learn_long %>%
+  group_by(Block, Group) %>% 
+  summarise(rt = mean(genskill_learn), se = std.error(genskill_learn, na.rm = T)) %>% 
+  ungroup()
+```
+
+## Study 3
+
+```{r}
+study3_SL_long <- study3_SL %>% 
+  select(c('Group', 'Subject', 'offline_SL', 'online_SL'))
+
+learning_phase <- c('offline_SL', 'online_SL')
+
+study3_SL_long <- pivot_longer(
+  data = study3_SL_long,
+  cols = learning_phase,
+  names_to = c(".value", "learning_type"),
+  names_pattern = "(\\w+)_(SL)",
+  values_to = "Learning_phase"
+)
+
+learning_phase2 <- c('offline', 'online')
+
+study3_SL_long <- pivot_longer(
+  data = study3_SL_long,
+  cols = learning_phase2,
+  names_to = c("Learning_phase"),
+  values_to = "SL_score"
+)
+
+study3_SL_long$Learning_phase[study3_SL_long$Learning_phase == "offline"] <- 1
+study3_SL_long$Learning_phase[study3_SL_long$Learning_phase == "online"] <- 2
+study3_SL_long$Group[study3_SL_long$Group == 0] <- "lower AQ"
+study3_SL_long$Group[study3_SL_long$Group == 1] <- "higher AQ"
+```
+
+```{r}
+study3_GS_long <- study3_GS %>% 
+  select(c('Group', 'Subject', 'offline_GS', 'online_GS'))
+
+learning_phase <- c('offline_GS', 'online_GS')
+
+study3_GS_long <- pivot_longer(
+  data = study3_GS_long,
+  cols = learning_phase,
+  names_to = c(".value", "learning_type"),
+  names_pattern = "(\\w+)_(GS)",
+  values_to = "Learning_phase"
+)
+
+learning_phase2 <- c('offline', 'online')
+
+study3_GS_long <- pivot_longer(
+  data = study3_GS_long,
+  cols = learning_phase2,
+  names_to = c("Learning_phase"),
+  values_to = "GS_score"
+)
+
+study3_GS_long$Learning_phase[study3_GS_long$Learning_phase == "offline"] <- 1
+study3_GS_long$Learning_phase[study3_GS_long$Learning_phase == "online"] <- 2
+study3_GS_long$Group[study3_GS_long$Group == 0] <- "lower AQ"
+study3_GS_long$Group[study3_GS_long$Group == 1] <- "higher AQ"
+```
+
+```{r}
+study3_SL_long_block <- study3_SL %>% 
+  select(c('Group', 'Subject', 'block2_offline','block3_offline', 'block4_offline','block5_offline', 'block6_offline','block7_offline', 'block8_offline','block9_offline', 'block10_offline',
+                                       'block11_offline', 'block12_offline','block13_offline', 'block14_offline','block15_offline', 'block16_offline', 'block17_offline','block18_offline', 'block19_offline','block20_offline', 'block21_offline', 'block22_offline','block23_offline', 'block24_offline','block25_offline','block2_online','block3_online', 'block4_online','block5_online', 'block6_online','block7_online', 'block8_online','block9_online', 'block10_online',
+                                       'block11_online', 'block12_online','block13_online', 'block14_online','block15_online', 'block16_online', 'block17_online','block18_online', 'block19_online','block20_online',
+                                       'block21_online', 'block22_online','block23_online', 'block24_online','block25_online'))
+
+blocks <- c('block2','block3', 'block4','block5', 'block6','block7', 'block8','block9', 'block10',
+               'block11', 'block12','block13', 'block14','block15', 'block16', 'block17','block18',
+               'block19','block20', 'block21', 'block22','block23', 'block24','block25')
+
+study3_SL_long_block <- pivot_longer(
+  data = study3_SL_long_block,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Learning_phase"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Learning_phase"
+)
+
+study3_SL_long_block <- pivot_longer(
+  data = study3_SL_long_block,
+  cols = starts_with(blocks),
+  names_to = c("Block"),
+  values_to = "SL_score"
+)
+
+study3_SL_long_block <- study3_SL_long_block %>% 
+  mutate(Block = gsub('block', "", Block))
+
+study3_SL_long_block <- study3_SL_long_block %>%
+  group_by(Block, Learning_phase, Group) %>% 
+  summarise(rt = mean(SL_score, na.rm = T), se = std.error(SL_score, na.rm = T)) %>% 
+  ungroup()
+```
+
+```{r}
+study3_GS_long_block <- study3_GS %>% 
+  select(c('Group', 'Subject', 'block2_offline','block3_offline', 'block4_offline','block5_offline', 'block6_offline','block7_offline', 'block8_offline','block9_offline', 'block10_offline',
+                                       'block11_offline', 'block12_offline','block13_offline', 'block14_offline','block15_offline', 'block16_offline', 'block17_offline','block18_offline', 'block19_offline','block20_offline', 'block21_offline', 'block22_offline','block23_offline', 'block24_offline','block25_offline','block2_online','block3_online', 'block4_online','block5_online', 'block6_online','block7_online', 'block8_online','block9_online', 'block10_online',
+                                       'block11_online', 'block12_online','block13_online', 'block14_online','block15_online', 'block16_online', 'block17_online','block18_online', 'block19_online','block20_online',
+                                       'block21_online', 'block22_online','block23_online', 'block24_online','block25_online'))
+
+blocks <- c('block2','block3', 'block4','block5', 'block6','block7', 'block8','block9', 'block10',
+               'block11', 'block12','block13', 'block14','block15', 'block16', 'block17','block18',
+               'block19','block20', 'block21', 'block22','block23', 'block24','block25')
+
+study3_GS_long_block <- pivot_longer(
+  data = study3_GS_long_block,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Learning_phase"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Learning_phase"
+)
+
+study3_GS_long_block <- pivot_longer(
+  data = study3_GS_long_block,
+  cols = starts_with(blocks),
+  names_to = c("Block"),
+  values_to = "GS_score"
+)
+
+study3_GS_long_block <- study3_GS_long_block %>% 
+  mutate(Block = gsub('block', "", Block))
+
+study3_GS_long_block <- study3_GS_long_block %>%
+  group_by(Block, Learning_phase, Group) %>% 
+  summarise(rt = mean(GS_score, na.rm = T), se = std.error(GS_score, na.rm = T)) %>% 
+  ungroup()
+```
+
+
+```{r}
+study3_stat_learn_long <- study3_stat_learn %>% 
+  select(c('Group', 'Subject', 'e1_H','e2_H','e3_H','e4_H','e5_H', 'e1_L','e2_L','e3_L','e4_L','e5_L'))
+
+blocks <- c('e1','e2','e3','e4','e5')
+
+study3_stat_learn_long <- pivot_longer(
+  data = study3_stat_learn_long,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Triplet"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Triplet"
+)
+
+study3_stat_learn_long <- pivot_longer(
+  data = study3_stat_learn_long,
+  cols = starts_with(blocks),
+  names_to = c("Blocks"),
+  values_to = "stat_learn"
+)
+
+study3_stat_learn_long <- study3_stat_learn_long %>% 
+  mutate(Block = gsub('e', "", Blocks))
+
+study3_stat_learn_long[study3_stat_learn_long == "H"] <- "High"
+study3_stat_learn_long[study3_stat_learn_long == "L"] <- "Low"
+
+study3_stat_learn_long <- study3_stat_learn_long %>%
+  group_by(Block, Triplet, Group) %>% 
+  summarise(rt = mean(stat_learn), se = std.error(stat_learn, na.rm = T)) %>% 
+  ungroup()
+```
+
+```{r}
+study3_genskill_learn_long <- study3_genskill_learn %>% 
+  select(c('Group', 'Subject', 'e1','e2','e3','e4', 'e5'))
+
+blocks <- c('e1','e2','e3','e4', 'e5')
+
+study3_genskill_learn_long <- pivot_longer(
+  data = study3_genskill_learn_long,
+  cols = starts_with(blocks),
+  names_to = c("Blocks"),
+  values_to = "genskill_learn"
+)
+
+study3_genskill_learn_long <- study3_genskill_learn_long %>% 
+  mutate(Block = gsub('e', "", Blocks))
+
+study3_genskill_learn_long <- study3_genskill_learn_long %>%
+  group_by(Block, Group) %>% 
+  summarise(rt = mean(genskill_learn), se = std.error(genskill_learn, na.rm = T)) %>% 
+  ungroup()
+```
+
+# Raincloud plots
+
+```{r}
+
+"%||%" <- function(a, b) {
+  if (!is.null(a)) a else b
+}
+
+geom_flat_violin <- function(mapping = NULL, data = NULL, stat = "ydensity",
+                             position = "dodge", trim = TRUE, scale = "area",
+                             show.legend = NA, inherit.aes = TRUE, ...) {
+  layer(
+    data = data,
+    mapping = mapping,
+    stat = stat,
+    geom = GeomFlatViolin,
+    position = position,
+    show.legend = show.legend,
+    inherit.aes = inherit.aes,
+    params = list(
+      trim = trim,
+      scale = scale,
+      ...
+    )
+  )
+}
+
+#' @rdname ggplot2-ggproto
+#' @format NULL
+#' @usage NULL
+#' @export
+GeomFlatViolin <-
+  ggproto("GeomFlatViolin", Geom,
+    setup_data = function(data, params) {
+      data$width <- data$width %||%
+        params$width %||% (resolution(data$x, FALSE) * 0.9)
+
+      # ymin, ymax, xmin, and xmax define the bounding rectangle for each group
+      data %>%
+        group_by(group) %>%
+        mutate(
+          ymin = min(y),
+          ymax = max(y),
+          xmin = x,
+          xmax = x + width / 2
+        )
+    },
+
+    draw_group = function(data, panel_scales, coord) {
+      # Find the points for the line to go all the way around
+      data <- transform(data,
+        xminv = x,
+        xmaxv = x + violinwidth * (xmax - x)
+      )
+
+      # Make sure it's sorted properly to draw the ouSLine
+      newdata <- rbind(
+        plyr::arrange(transform(data, x = xminv), y),
+        plyr::arrange(transform(data, x = xmaxv), -y)
+      )
+
+      # Close the polygon: set first and last point the same
+      # Needed for coord_polar and such
+      newdata <- rbind(newdata, newdata[1, ])
+
+      ggplot2:::ggname("geom_flat_violin", GeomPolygon$draw_panel(newdata, panel_scales, coord))
+    },
+
+    draw_key = draw_key_polygon,
+
+    default_aes = aes(
+      weight = 1, colour = "grey20", fill = "white", size = 0.5,
+      alpha = NA, linetype = "solid"
+    ),
+
+    required_aes = c("x", "y")
+  )
+```
+
+```{r}
+jitter_nudge <- position_jitternudge(width = .05, height = 2,
+                                     seed = 123, x = -.1)
+```
+
+## Study 1
+### statistical learning
+
+```{r}
+ggplot(study1_SL_long, aes(x = Learning_phase, y = SL_score, fill = factor(Group, levels = c("NTP", "ASD"))), show.legend = FALSE) +
+  geom_flat_violin(aes(fill = factor(Group, levels = c("NTP", "ASD"))), position = position_nudge(x = .1, y = 0), adjust = 1.5, trim = FALSE, alpha = .5, colour = NA, show.legend = TRUE) +
+  geom_point(aes(x = as.numeric(Learning_phase) - .15, colour = factor(Group, levels = c("NTP", "ASD"))), position = position_jitter(width = .05), size = 1, shape = 20, show.legend = FALSE) +
+  geom_boxplot(aes(x = Learning_phase, y = SL_score, fill = factor(Group, levels = c("NTP", "ASD"))), outlier.shape = NA, alpha = .5, width = .1, colour = "black", show.legend = FALSE) +
+  scale_colour_brewer(palette = "Dark2") +
+  scale_fill_brewer(palette = "Dark2") +
+  xlab("Learning phase") +
+  ylab("Mean statistical learning score (ms)") +
+  scale_x_discrete(labels = c("offline", "online")) +
+  theme_classic() +
+  labs(fill = "Group")
+
+#ggsave("raincloud_study1_SL.png")
+```
+
+### general skill learning
+
+```{r}
+ggplot(study1_GS_long, aes(x = Learning_phase, y = GS_score, fill = factor(Group, levels = c("NTP", "ASD"))), show.legend = FALSE) +
+  geom_flat_violin(aes(fill = factor(Group, levels = c("NTP", "ASD"))), position = position_nudge(x = .1, y = 0), adjust = 1.5, trim = FALSE, alpha = .5, colour = NA, show.legend = TRUE) +
+  geom_point(aes(x = as.numeric(Learning_phase) - .15, colour = factor(Group, levels = c("NTP", "ASD"))), position = position_jitter(width = .05), size = 1, shape = 20, show.legend = FALSE) +
+  geom_boxplot(aes(x = Learning_phase, y = GS_score, fill = factor(Group, levels = c("NTP", "ASD"))),outlier.shape = NA, alpha = .5, width = .1, colour = "black", show.legend = FALSE) +
+  scale_colour_brewer(palette = "Dark2") +
+  scale_fill_brewer(palette = "Dark2") +
+  xlab("Learning phase") +
+  ylab("Mean general skill learning score (ms)") +
+  scale_x_discrete(labels = c("offline", "online")) +
+  theme_classic() +
+  labs(fill = "Group")
+
+#ggsave("raincloud_study1_GS.png")
+```
+
+## Study 2
+### statistical learning
+
+```{r}
+ggplot(study2_SL_long, aes(x = Learning_phase, y = SL_score, fill = factor(Group, levels = c("NTP", "ASD"))), show.legend = FALSE) +
+  geom_flat_violin(aes(fill = factor(Group, levels = c("NTP", "ASD"))), position = position_nudge(x = .1, y = 0), adjust = 1.5, trim = FALSE, alpha = .5, colour = NA, show.legend = TRUE) +
+  geom_point(aes(x = as.numeric(Learning_phase) - .15, colour = factor(Group, levels = c("NTP", "ASD"))), position = position_jitter(width = .05), size = 1, shape = 20, show.legend = FALSE) +
+  geom_boxplot(aes(x = Learning_phase, y = SL_score, fill = factor(Group, levels = c("NTP", "ASD"))),outlier.shape = NA, alpha = .5, width = .1, colour = "black", show.legend = FALSE) + 
+  scale_colour_brewer(palette = "Dark2") +
+  scale_fill_brewer(palette = "Dark2") +
+  xlab("Learning phase") +
+  ylab("Mean statistical learning score (ms)") +
+  scale_x_discrete(labels = c("offline", "online")) +
+  theme_classic() +
+  labs(fill = "Group")
+
+#ggsave("raincloud_study2_SL.png")
+```
+
+### general skill learning
+
+```{r}
+ggplot(study2_GS_long, aes(x = Learning_phase, y = GS_score, fill = factor(Group, levels = c("NTP", "ASD"))), show.legend = FALSE) +
+  geom_flat_violin(aes(fill = factor(Group, levels = c("NTP", "ASD"))), position = position_nudge(x = .1, y = 0), adjust = 1.5, trim = FALSE, alpha = .5, colour = NA, show.legend = TRUE) +
+  geom_point(aes(x = as.numeric(Learning_phase) - .15, colour = factor(Group, levels = c("NTP", "ASD"))), position = position_jitter(width = .05),size = 1, shape = 20, show.legend = FALSE) +
+  geom_boxplot(aes(x = Learning_phase, y = GS_score, fill = factor(Group, levels = c("NTP", "ASD"))),outlier.shape = NA, alpha = .5, width = .1, colour = "black", show.legend = FALSE) +
+  scale_colour_brewer(palette = "Dark2") +
+  scale_fill_brewer(palette = "Dark2") +
+  xlab("Learning phase") +
+  ylab("Mean general skill learning score (ms)") +
+  scale_x_discrete(labels = c("offline", "online")) +
+  theme_classic() +
+  labs(fill = "Group")
+
+#ggsave("raincloud_study2_GS.png")
+```
+
+## Study 3
+### statistical learning
+
+```{r}
+ggplot(study3_SL_long, aes(x = Learning_phase, y = SL_score, fill = factor(Group, levels = c("lower AQ", "higher AQ"))), show.legend = FALSE) +
+  geom_flat_violin(aes(fill = factor(Group, levels = c("lower AQ", "higher AQ"))), position = position_nudge(x = .1, y = 0), adjust = 1.5, trim = FALSE, alpha = .5, colour = NA, show.legend = TRUE) +
+  geom_point(aes(x = as.numeric(Learning_phase) - .15, colour = factor(Group, levels = c("lower AQ", "higher AQ"))), position = position_jitter(width = .05), size = 1, shape = 20, show.legend = FALSE) +
+  geom_boxplot(aes(x = Learning_phase, y = SL_score, fill = factor(Group, levels = c("lower AQ", "higher AQ"))),outlier.shape = NA, alpha = .5, width = .1, colour = "black", show.legend = FALSE) +
+  scale_colour_brewer(palette = "Dark2") +
+  scale_fill_brewer(palette = "Dark2") +
+  xlab("Learning phase") +
+  ylab("Mean statistical learning score (ms)") +
+  scale_x_discrete(labels = c("offline", "online")) +
+  theme_classic() +
+  labs(fill = "Group")
+
+#ggsave("raincloud_study3_SL.png")
+```
+
+### general skill learning
+
+```{r}
+ggplot(study3_GS_long, aes(x = Learning_phase, y = GS_score, fill = factor(Group, levels = c("lower AQ", "higher AQ"))), show.legend = FALSE) +
+  geom_flat_violin(aes(fill = factor(Group, levels = c("lower AQ", "higher AQ"))), position = position_nudge(x = .1, y = 0), adjust = 1.5, trim = FALSE, alpha = .5, colour = NA, show.legend = TRUE) +
+  geom_point(aes(x = as.numeric(Learning_phase) - .15, colour = factor(Group, levels = c("lower AQ", "higher AQ"))), position = position_jitter(width = .05), size = 1, shape = 20, show.legend = FALSE) +
+  geom_boxplot(aes(x = Learning_phase, y = GS_score, fill = factor(Group, levels = c("lower AQ", "higher AQ"))),outlier.shape = NA, alpha = .5, width = .1, colour = "black", show.legend = FALSE) +
+  scale_colour_brewer(palette = "Dark2") +
+  scale_fill_brewer(palette = "Dark2") +
+  xlab("Learning phase") +
+  ylab("Mean general skill learning score (ms)") +
+  scale_x_discrete(labels = c("offline", "online")) +
+  theme_classic() +
+  labs(fill = "Group")
+
+#ggsave("raincloud_study3_GS.png")
+```
+
+# Learning across blocks
+## Study 1
+### statistical learning
+
+```{r}
+ggplot(study1_SL_long_block, aes(x = as.numeric(Block), y = rt, colour = Learning_phase)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = rt - se, ymax = rt + se), width = 0.05, size = 0.2) +
+  facet_grid(Group ~ ., labeller = as_labeller(c("0" = "NTP", "1" = "ASD"))) +
+  labs(x = "Block", y = "Statistical learning score (ms)", colour = "Learning phase") +
+  theme_classic()
+
+#ggsave("sm_study1_SL.png")
+```
+
+### general skill learning
+
+```{r}
+ggplot(study1_GS_long_block, aes(x = as.numeric(Block), y = rt, colour = Learning_phase)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = rt - se, ymax = rt + se), width = 0.05, size = 0.2) +
+  facet_grid(Group ~ ., labeller = as_labeller(c("0" = "NTP", "1" = "ASD"))) +
+  labs(x = "Block", y = "General skill learning score (ms)", colour = "Learning phase") +
+  theme_classic()
+
+#ggsave("sm_study1_GS.png")
+```
+
+## Study 2
+### statistical learning
+
+```{r}
+ggplot(study2_SL_long_block, aes(x = as.numeric(Block), y = rt, colour = Learning_phase)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = rt - se, ymax = rt + se), width = 0.05, size = 0.2) +
+  facet_grid(Group ~ ., labeller = as_labeller(c("0" = "NTP", "1" = "ASD"))) +
+  labs(x = "Block", y = "Statistical learning score (ms)", colour = "Learning phase") +
+  theme_classic()
+
+#ggsave("sm_study2_SL.png")
+```
+
+### general skill learning
+
+```{r}
+ggplot(study2_GS_long_block, aes(x = as.numeric(Block), y = rt, colour = Learning_phase)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = rt - se, ymax = rt + se), width = 0.05, size = 0.2) +
+  facet_grid(Group ~ ., labeller = as_labeller(c("0" = "NTP", "1" = "ASD"))) +
+  labs(x = "Block", y = "General skill learning score (ms)", colour = "Learning phase") +
+  theme_classic()
+
+#ggsave("sm_study2_GS.png")
+```
+
+## Study 3
+### statistical learning
+
+```{r}
+ggplot(study3_SL_long_block, aes(x = as.numeric(Block), y = rt, colour = Learning_phase)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = rt - se, ymax = rt + se), width = 0.05, size = 0.2) +
+  facet_grid(Group ~ ., labeller = as_labeller(c("0" = "lower AQ", "1" = "higher AQ"))) +
+  labs(x = "Block", y = "Statistical learning score (ms)", colour = "Learning phase") +
+  theme_classic()
+
+#ggsave("sm_study3_SL.png")
+```
+
+### general skill learning
+
+```{r}
+ggplot(study3_GS_long_block, aes(x = as.numeric(Block), y = rt, colour = Learning_phase)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = rt - se, ymax = rt + se), width = 0.05, size = 0.2) +
+  facet_grid(Group ~ ., labeller = as_labeller(c("0" = "lower AQ", "1" = "higher AQ"))) +
+  labs(x = "Block", y = "General skill learning score (ms)", colour = "Learning phase") +
+  theme_classic()
+
+#ggsave("sm_study3_GS.png")
+```
+
+# Stat learning
+## Study 1
+
+```{r}
+ggplot(study1_stat_learn_long, aes(x = as.numeric(Block), y = rt, colour = Triplet)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = rt - se, ymax = rt + se), width = 0.05, size = 0.2) +
+  facet_grid(Group ~ ., labeller = as_labeller(c("0" = "NTP", "1" = "ASD"))) +
+  scale_x_continuous(labels = c("1" = "1-5", "2" = "5-10", "3" = "11-15", "4" = "16-20")) +
+  labs(x = "Blocks", y = "Reaction time (ms)", colour = "Triplet") +
+  scale_color_manual(values = c("#A50021", "#5e729a")) +
+  theme_classic()
+
+#ggsave("sm_study1_stat_learn.png")
+```
+
+## Study 2
+
+```{r}
+ggplot(study2_stat_learn_long, aes(x = as.numeric(Block), y = rt, colour = Triplet)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = rt - se, ymax = rt + se), width = 0.05, size = 0.2) +
+  facet_grid(Group ~ ., labeller = as_labeller(c("0" = "NTP", "1" = "ASD"))) +
+  scale_x_continuous(labels = c("1" = "1-5", "2" = "5-10", "3" = "11-15", "4" = "16-20")) +
+  labs(x = "Blocks", y = "Reaction time (ms)", colour = "Triplet") +
+  scale_color_manual(values = c("#A50021", "#5e729a")) +
+  theme_classic()
+
+#ggsave("sm_study2_stat_learn.png")
+```
+
+## Study 3
+
+```{r}
+ggplot(study3_stat_learn_long, aes(x = as.numeric(Block), y = rt, colour = Triplet)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = rt - se, ymax = rt + se), width = 0.05, size = 0.2) +
+  facet_grid(Group ~ ., labeller = as_labeller(c("0" = "lower AQ", "1" = "higher AQ"))) +
+  scale_x_continuous(labels = c("1" = "1-5", "2" = "5-10", "3" = "11-15", "4" = "16-20", "5" = "21-25")) +
+  labs(x = "Blocks", y = "Reaction time (ms)", colour = "Triplet") +
+  scale_color_manual(values = c("#A50021", "#5e729a")) +
+  theme_classic()
+
+#ggsave("sm_study3_stat_learn.png")
+```
+
+# General skill learning
+## Study 1
+
+```{r}
+ggplot(study1_genskill_learn_long, aes(x = as.numeric(Block), y = rt, color = as.factor(Group))) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = rt - se, ymax = rt + se), width = 0.05, size = 0.2) +
+  scale_x_continuous(labels = c("1" = "1-5", "2" = "5-10", "3" = "11-15", "4" = "16-20")) +
+  labs(x = "Blocks", y = "Reaction time (ms)", color = "Group") +
+  scale_color_brewer(palette = "Accent", labels = c("NTP", "ASD")) +
+  theme_classic()
+
+#ggsave("sm_study1_genskill_learn.png")
+```
+
+## Study 2
+
+```{r}
+ggplot(study2_genskill_learn_long, aes(x = as.numeric(Block), y = rt, color = as.factor(Group))) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = rt - se, ymax = rt + se), width = 0.05, size = 0.2) +
+  scale_x_continuous(labels = c("1" = "1-5", "2" = "5-10", "3" = "11-15", "4" = "16-20")) +
+  labs(x = "Blocks", y = "Reaction time (ms)", color = "Group") +
+  scale_color_brewer(palette = "Accent", labels = c("NTP", "ASD")) +
+  theme_classic()
+
+#ggsave("sm_study2_genskill_learn.png")
+```
+
+## Study 3
+
+```{r}
+ggplot(study3_genskill_learn_long, aes(x = as.numeric(Block), y = rt, color = as.factor(Group))) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = rt - se, ymax = rt + se), width = 0.05, size = 0.2) +
+  scale_x_continuous(labels = c("1" = "1-5", "2" = "5-10", "3" = "11-15", "4" = "16-20", "5" = "21-25")) +
+  labs(x = "Blocks", y = "Reaction time (ms)", color = "Group") +
+  scale_color_brewer(palette = "Accent", labels = c("lower AQ", "higher AQ")) +
+  theme_classic()
+
+#ggsave("sm_study3_genskill_learn.png")
+```

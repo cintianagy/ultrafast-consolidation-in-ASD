@@ -1,0 +1,234 @@
+---
+title: "statistical_learning"
+author: "Cintia Anna Nagy"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# import packages
+
+```{r message = FALSE}
+library(tidyverse)
+library(rstatix)
+library(readr)
+library(dplyr)
+library(car)
+```
+
+# import data
+
+```{r message = FALSE}
+study1_stat_learn  <- read_csv("processed_data/study_1/data_study_1_statistical_learning.csv")
+study1_genskill_learn  <- read_csv("processed_data/study_1/data_study_1_general_skill_learning.csv")
+study2_stat_learn  <- read_csv("processed_data/study_2/data_study_2_statistical_learning.csv")
+study2_genskill_learn  <- read_csv("processed_data/study_2/data_study_2_general_skill_learning.csv")
+study3_stat_learn <- read_csv("processed_data/study_3/data_study_3_statistical_learning.csv")
+study3_genskill_learn  <- read_csv("processed_data/study_3/data_study_3_general_skill_learning.csv")
+```
+
+# preprocess data
+## Study 1
+
+```{r}
+study1_stat_learn_long <- study1_stat_learn %>% 
+  select(c('Group', 'Subject', 'e1_H','e2_H','e3_H','e4_H', 'e1_L','e2_L','e3_L','e4_L'))
+
+blocks <- c('e1','e2','e3','e4')
+
+study1_stat_learn_long <- pivot_longer(
+  data = study1_stat_learn_long,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Triplet"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Triplet"
+)
+
+study1_stat_learn_long <- pivot_longer(
+  data = study1_stat_learn_long,
+  cols = starts_with(blocks),
+  names_to = c("Blocks"),
+  values_to = "stat_learn"
+)
+
+study1_stat_learn_long <- study1_stat_learn_long %>% 
+  mutate(Block = gsub('e', "", Blocks))
+```
+
+```{r}
+study1_genskill_learn_long <- study1_genskill_learn %>% 
+  select(c('Group', 'Subject', 'e1','e2','e3','e4'))
+
+blocks <- c('e1','e2','e3','e4')
+
+study1_genskill_learn_long <- pivot_longer(
+  data = study1_genskill_learn_long,
+  cols = starts_with(blocks),
+  names_to = c("Blocks"),
+  values_to = "genskill_learn"
+)
+
+study1_genskill_learn_long <- study1_genskill_learn_long %>% 
+  mutate(Block = gsub('e', "", Blocks))
+```
+
+## Study 2
+
+```{r}
+study2_stat_learn_long <- study2_stat_learn %>% 
+  select(c('Group', 'Subject', 'e1_H','e2_H','e3_H','e4_H', 'e1_L','e2_L','e3_L','e4_L'))
+
+blocks <- c('e1','e2','e3','e4')
+
+study2_stat_learn_long <- pivot_longer(
+  data = study2_stat_learn_long,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Triplet"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Triplet"
+)
+
+study2_stat_learn_long <- pivot_longer(
+  data = study2_stat_learn_long,
+  cols = starts_with(blocks),
+  names_to = c("Blocks"),
+  values_to = "stat_learn"
+)
+
+study2_stat_learn_long <- study2_stat_learn_long %>% 
+  mutate(Block = gsub('e', "", Blocks))
+```
+
+```{r}
+study2_genskill_learn_long <- study2_genskill_learn %>% 
+  select(c('Group', 'Subject', 'e1','e2','e3','e4'))
+
+blocks <- c('e1','e2','e3','e4')
+
+study2_genskill_learn_long <- pivot_longer(
+  data = study2_genskill_learn_long,
+  cols = starts_with(blocks),
+  names_to = c("Blocks"),
+  values_to = "genskill_learn"
+)
+
+study2_genskill_learn_long <- study2_genskill_learn_long %>% 
+  mutate(Block = gsub('e', "", Blocks))
+```
+
+## Study 3
+
+```{r}
+study3_stat_learn_long <- study3_stat_learn %>% 
+  select(c('Group', 'Subject', 'e1_H','e2_H','e3_H','e4_H','e5_H', 'e1_L','e2_L','e3_L','e4_L','e5_L'))
+
+blocks <- c('e1','e2','e3','e4','e5')
+
+study3_stat_learn_long <- pivot_longer(
+  data = study3_stat_learn_long,
+  cols = starts_with(blocks),
+  names_to = c(".value", "Triplet"),
+  names_pattern = "([^_]+)_(\\D+)",
+  values_to = "Triplet"
+)
+
+study3_stat_learn_long <- pivot_longer(
+  data = study3_stat_learn_long,
+  cols = starts_with(blocks),
+  names_to = c("Blocks"),
+  values_to = "stat_learn"
+)
+
+study3_stat_learn_long <- study3_stat_learn_long %>% 
+  mutate(Block = gsub('e', "", Blocks))
+```
+
+```{r}
+study3_genskill_learn_long <- study3_genskill_learn %>% 
+  select(c('Group', 'Subject', 'e1','e2','e3','e4', 'e5'))
+
+blocks <- c('e1','e2','e3','e4', 'e5')
+
+study3_genskill_learn_long <- pivot_longer(
+  data = study3_genskill_learn_long,
+  cols = starts_with(blocks),
+  names_to = c("Blocks"),
+  values_to = "genskill_learn"
+)
+
+study3_genskill_learn_long <- study3_genskill_learn_long %>% 
+  mutate(Block = gsub('e', "", Blocks))
+```
+
+# Study 1
+## stattistical learning: triplet x block x group
+
+```{r}
+study1_stat_learn_anova <- anova_test(data = study1_stat_learn_long, wid = "Subject", dv = "stat_learn", between = "Group", within = c("Triplet", "Block"), effect.size = "pes")
+study1_stat_learn_anova
+```
+
+```{r}
+# greenhouse-geisser correction
+get_anova_table(study1_stat_learn_anova, correction = c("GG"))
+```
+
+## general skill learning: block x group
+
+```{r}
+study1_genskill_learn_anova <- anova_test(data = study1_genskill_learn_long, wid = "Subject", dv = "genskill_learn", between = "Group", within = c("Block"), effect.size = "pes")
+study1_genskill_learn_anova
+```
+
+```{r}
+# greenhouse-geisser correction
+get_anova_table(study1_genskill_learn_anova, correction = c("GG"))
+```
+
+# Study 2
+## stat learning: triplet x block x group
+
+```{r}
+study2_stat_learn_anova <- anova_test(data = study2_stat_learn_long, wid = "Subject", dv = "stat_learn", between = "Group", within = c("Triplet", "Block"), effect.size = "pes")
+study2_stat_learn_anova
+```
+
+```{r}
+# greenhouse-geisser correction
+get_anova_table(study2_stat_learn_anova, correction = c("GG"))
+```
+## general skill learning: block x group
+
+```{r}
+study2_genskill_learn_anova <- anova_test(data = study2_genskill_learn_long, wid = "Subject", dv = "genskill_learn", between = "Group", within = c("Block"), effect.size = "pes")
+study2_genskill_learn_anova
+```
+
+```{r}
+# greenhouse-geisser correction
+get_anova_table(study2_genskill_learn_anova, correction = c("GG"))
+```
+
+# Study 3
+## stat learning: triplet x block x group
+
+```{r}
+study3_stat_learn_anova <- anova_test(data = study3_stat_learn_long, wid = "Subject", dv = "stat_learn", between = "Group", within = c("Triplet", "Block"), effect.size = "pes")
+study3_stat_learn_anova
+```
+
+```{r}
+# greenhouse-geisser correction
+get_anova_table(study3_stat_learn_anova, correction = c("GG"))
+```
+
+## general skill learning: block x group
+
+```{r}
+study3_genskill_learn_anova <- anova_test(data = study3_genskill_learn_long, wid = "Subject", dv = "genskill_learn", between = "Group", within = c("Block"), effect.size = "pes")
+study3_genskill_learn_anova
+```
+
+```{r}
+# greenhouse-geisser correction
+get_anova_table(study3_genskill_learn_anova, correction = c("GG"))
+```
